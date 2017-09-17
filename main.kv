@@ -1,0 +1,91 @@
+#:kivy 1.0
+#:import Factory kivy.factory.Factory
+
+# <Main>:
+#    Gil:
+#        name: 'gil_screen'
+#    Trabajador:
+#        name: 'trabajador_screen'
+
+<Gil>:
+    Button:
+        id: cambio_instrumento
+        size_hint: (None, None)
+        height: 30
+        width: 150
+        pos_hint: {'center_x': 0.25, 'center_y':0.8}         # Con esto le digo donde va a estar
+        font_size: 14
+        text: "Conectar con equipo"
+        # border: (0,0,0,0)
+        bold: True
+        text_size: (self.width, self.height)
+        halign: 'center'
+        valign: 'middle'
+#        on_press: root.manager.current = 'trabajador_screen'
+        on_press: Factory.Monguito()
+
+    BoxLayout:
+        id: smith
+        size_hint: (None,None)
+        size: (300,300)
+        pos_hint: {'center_x':0.8, 'center_y':0.4}
+        canvas.before:
+            Color:
+                rgba: (0.95, 0.95, 0.95, 1)
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        AsyncImage:
+            opacity: 1
+            size: self.texture_size
+            source: './Img/smith_chart.png'
+            allow_stretch: True
+
+<Trabajador>:
+
+    BoxLayout:
+        size_hint: (None, None)
+        size: (300,300)
+        pos_hint: {'center_x': 0.5, 'center_y':0.5}         # Con esto le digo donde va a estar
+        canvas.before:
+            Color:
+                rgba: (1, 1, 1, 1)
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        Label:
+            size_hint_y: None
+            height: 18
+            font_size: 12
+            bold: True
+            text: "Ver. 1.0.1"
+            color: (0.2, 0.2, 0.2, 1)
+        Button:
+            id: cambio_instrumento
+            size_hint: (None, None)
+            height: 150
+            width: 150
+            pos_hint: {'center_x': 0.5, 'center_y':0.5}         # Con esto le digo donde va a estar
+            font_size: 14
+            text: "Conectar con equipo"
+            # border: (0,0,0,0)
+            bold: True
+            text_size: (self.width, self.height)
+            halign: 'center'
+            valign: 'middle'
+            on_press: root.manager.current = 'gil_screen'
+
+<Mongo>:
+    fullscreen: False
+    size_hint: (0.5,0.5)
+    title: 'Seleccione el equipo al cual quiere conectarse'
+    auto_dismiss: False
+    Button:
+        text: 'Cancelar'
+        on_press: root.dismiss()
+
+
+<SubWidget>:
+    text: root.h
+    on_press: root.press_action()
