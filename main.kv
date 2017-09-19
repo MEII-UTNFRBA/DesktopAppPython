@@ -1,12 +1,85 @@
 #:kivy 1.0
 #:import Factory kivy.factory.Factory
 
+<PuntoEnGrafico>:
+    size: 15, 15
+    canvas:
+        Color:
+            rgb: (1,0,1)
+        Ellipse:
+            pos: self.pos
+            size: self.size
 <Main>:
+    punto: punto_graf
     AsyncImage:
         opacity: 1
         size: self.texture_size
         source: './Img/test.jpg'
         allow_stretch: True
+
+    Button:
+        id: mongo1
+        size_hint: (None, None)
+        height: 30
+        width: 30
+        pos_hint: {'center_x': 0.5, 'center_y':0.55}         # Con esto le digo donde va a estar
+        font_size: 14
+        text: "U"
+        # border: (0,0,0,0)
+        bold: True
+        text_size: (self.width, self.height)
+        halign: 'center'
+        valign: 'middle'
+#        on_press: root.manager.current = 'trabajador_screen'
+        on_press: root.up()
+
+    Button:
+        id: mongo2
+        size_hint: (None, None)
+        height: 30
+        width: 30
+        pos_hint: {'center_x': 0.5, 'center_y':0.45}         # Con esto le digo donde va a estar
+        font_size: 14
+        text: "D"
+        # border: (0,0,0,0)
+        bold: True
+        text_size: (self.width, self.height)
+        halign: 'center'
+        valign: 'middle'
+#        on_press: root.manager.current = 'trabajador_screen'
+        on_press: root.down()
+
+    Button:
+        id: mongo3
+        size_hint: (None, None)
+        height: 30
+        width: 30
+        pos_hint: {'center_x': 0.45, 'center_y':0.5}         # Con esto le digo donde va a estar
+        font_size: 14
+        text: "L"
+        # border: (0,0,0,0)
+        bold: True
+        text_size: (self.width, self.height)
+        halign: 'center'
+        valign: 'middle'
+#        on_press: root.manager.current = 'trabajador_screen'
+        on_press: root.left()
+
+    Button:
+        id: mongo4
+        size_hint: (None, None)
+        height: 30
+        width: 30
+        pos_hint: {'center_x': 0.55, 'center_y':0.5}         # Con esto le digo donde va a estar
+        font_size: 14
+        text: "R"
+        # border: (0,0,0,0)
+        bold: True
+        text_size: (self.width, self.height)
+        halign: 'center'
+        valign: 'middle'
+#        on_press: root.manager.current = 'trabajador_screen'
+        on_press: root.right()
 
     Button:
         id: vna_connect
@@ -57,3 +130,6 @@
             size: self.texture_size
             source: './Img/smith_chart.png'
             allow_stretch: True
+            PuntoEnGrafico:
+                id: punto_graf
+                center: self.parent.center
