@@ -53,13 +53,16 @@ class VNAConnectPopup(Popup):
 
     global rm, vna_elegido, inst
 
-    def __init__(self, *args):
-        super(VNAConnectPopup, self).__init__(*args)
+    def __init__(self):
+        super(VNAConnectPopup, self).__init__()
         a=ObjectProperty()
         a = rm.list_resources()
-        if len(a)>0:
+        print(len(a))
+        print(a)
+        if len(a) >0:
             box = BoxLayout(orientation='vertical')
-            for i in [len(a)]:
+            for i in range(0,len(a)):
+                print(i)
                 box.add_widget(Button(
                     text=str(a[i-1]),
                     on_press = lambda *args: VNAConnectPopup.hola(self,a[i-1])))
@@ -85,7 +88,10 @@ class VNAConnectPopup(Popup):
     def hola(self,*args):
         vna_elegido = args[0]
 #        inst = rm.open_resource(str(vna_elegido))      #Hay que ver como hacer para que no se rompa
-        print(str(vna_elegido))
+#        print(str(vna_elegido))
+        inst = rm.open_resource(str(vna_elegido))
+        print(inst.query("*IDN?"))
+        inst.write(":FREQuency:CENTer 800000")          #Para el DSA815 (SA)
         self.dismiss()
 
 
@@ -93,8 +99,8 @@ class ArduinoConnectPopup(Popup):
 
     global puerto_arduino
 
-    def __init__(self, *args):
-        super(ArduinoConnectPopup, self).__init__(*args)
+    def __init__(self):
+        super(ArduinoConnectPopup, self).__init__()
         a=serial_ports()
         if len(a) > 0:
             box = BoxLayout(orientation='vertical')
@@ -118,7 +124,6 @@ class ArduinoConnectPopup(Popup):
         self.auto_dismiss = False
         self.open()
 
-    @staticmethod
     def chau(self):
         self.dismiss()
 
@@ -129,6 +134,7 @@ class ArduinoConnectPopup(Popup):
 
 class PuntoEnGrafico(Widget):
 
+    # El grafico del smith utilizado tiene 240 "pasos" de diametro
     posicion_x = NumericProperty(0)
     posicion_y = NumericProperty(0)
     posicion = ReferenceListProperty(posicion_x, posicion_y)
