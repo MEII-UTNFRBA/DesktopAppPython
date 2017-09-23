@@ -12,18 +12,20 @@ from puerto_serie import serial_ports
 from kivy.uix.widget import Widget
 from kivy.properties import NumericProperty, ReferenceListProperty
 from kivy.vector import Vector
+from kivy.properties import ListProperty
 
 rm = visa.ResourceManager()
 vna_elegido = []
 puerto_arduino=[]
 inst=[]
 
-
 class Main(FloatLayout):
 #    def __init__(self, name):
 #        self.name = name
 
     punto = ObjectProperty(None)
+
+    equipoconectado = "Desconectado"
 
     def update(self):
         self.punto.move()
@@ -49,23 +51,27 @@ class Main(FloatLayout):
         self.update()
 
 
+
 class VNAConnectPopup(Popup):
 
     global rm, vna_elegido, inst
 
     def __init__(self):
         super(VNAConnectPopup, self).__init__()
-        a=ObjectProperty()
-        a = rm.list_resources()
+        rm = visa.ResourceManager()
+        a = ObjectProperty()
+        a = rm.list_resources(query=u'USB?*')
         print(len(a))
         print(a)
         if len(a) >0:
             box = BoxLayout(orientation='vertical')
-            for i in range(0,len(a)):
+            for i in range(0, len(a)):
                 print(i)
+                inst = rm.open_resource(str(a[i-1]))
                 box.add_widget(Button(
-                    text=str(a[i-1]),
-                    on_press = lambda *args: VNAConnectPopup.hola(self,a[i-1])))
+                    text=str(inst.query("*IDN?")),
+                    on_press = lambda *args: VNAConnectPopup.hola(self, a[i-1])))
+                inst.close()
             self.title = 'Seleccione un equipo'
             self.content=box
             self.size_hint=(0.4, 0.4)
@@ -78,7 +84,7 @@ class VNAConnectPopup(Popup):
         box.add_widget(Button(
             text="Cancelar",
             on_press=lambda *args: VNAConnectPopup.chau(self)))
-        self.auto_dismiss=False
+        self.auto_dismiss = False
         self.open()
 
     @staticmethod
@@ -88,10 +94,11 @@ class VNAConnectPopup(Popup):
     def hola(self,*args):
         vna_elegido = args[0]
 #        inst = rm.open_resource(str(vna_elegido))      #Hay que ver como hacer para que no se rompa
-#        print(str(vna_elegido))
+        print(str(vna_elegido))
         inst = rm.open_resource(str(vna_elegido))
         print(inst.query("*IDN?"))
-        inst.write(":FREQuency:CENTer 800000")          #Para el DSA815 (SA)
+        inst.write(":FREQ:CENT 803000")          #Para el DSA815 (SA)
+        inst.close()
         self.dismiss()
 
 

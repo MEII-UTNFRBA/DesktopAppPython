@@ -11,6 +11,7 @@
             size: self.size
 <Main>:
     punto: punto_graf
+
     AsyncImage:
         opacity: 1
         size: self.texture_size
@@ -110,7 +111,6 @@
         text_size: (self.width, self.height)
         halign: 'center'
         valign: 'middle'
-#        on_press: root.manager.current = 'trabajador_screen'
         on_press: Factory.ArduinoConnectPopup()
 
 
@@ -133,3 +133,17 @@
             PuntoEnGrafico:
                 id: punto_graf
                 center: self.parent.center
+
+    Label:
+        id: equipo_conectado
+        size: self.size
+        text: root.equipoconectado
+        text_size: cm(6), cm(4)
+        pos_hint: {'center_x':0.2, 'center_y':0.8}
+        background_color:
+        canvas.before:
+            Color:
+                rgba: (1,1,0,1)
+            Rectangle:
+                pos: self.pos
+                size: (100,400)
