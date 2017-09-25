@@ -96,7 +96,8 @@
         halign: 'center'
         valign: 'middle'
 #        on_press: root.manager.current = 'trabajador_screen'
-        on_press: Factory.VNAConnectPopup()
+#        on_press: Factory.VNAConnectPopup()
+        on_press: root.vna_popup()
 
     Button:
         id: arduino_connect
@@ -111,7 +112,7 @@
         text_size: (self.width, self.height)
         halign: 'center'
         valign: 'middle'
-        on_press: Factory.ArduinoConnectPopup()
+        on_press: root.arduino_popup()
 
 
     BoxLayout:
@@ -134,16 +135,40 @@
                 id: punto_graf
                 center: self.parent.center
 
-    Label:
-        id: equipo_conectado
-        size: self.size
-        text: root.equipoconectado
-        text_size: cm(6), cm(4)
-        pos_hint: {'center_x':0.2, 'center_y':0.8}
-        background_color:
+    BoxLayout:
+        id: port_box
+        size_hint: (None,None)
+        size: (300,30)
+        opacity: 1
+        pos_hint: {'center_x':0.25, 'center_y':0.35}
         canvas.before:
             Color:
-                rgba: (1,1,0,1)
+                rgba: (1,1,1,1)
             Rectangle:
                 pos: self.pos
-                size: (100,400)
+                size: self.size
+        Label:
+            size: self.size
+            text: root.arduino_status
+            color: 0,0,0,1
+            bold: 1
+            background_color:
+
+    BoxLayout:
+        id: vna_box
+        size_hint: (None,None)
+        size: (300,30)
+        opacity: 1
+        pos_hint: {'center_x':0.25, 'center_y':0.75}
+        canvas.before:
+            Color:
+                rgba: (1,1,1,1)
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        Label:
+            size: self.size
+            text: root.vna_status
+            color: 0,0,0,1
+            bold: 1
+            background_color:
