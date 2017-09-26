@@ -10,6 +10,8 @@ from puerto_serie import serial_ports
 from kivy.uix.widget import Widget
 from kivy.properties import NumericProperty, ReferenceListProperty
 from kivy.vector import Vector
+from kivy.clock import Clock
+
 
 rm = visa.ResourceManager()
 inst=[]
@@ -25,31 +27,23 @@ class Main(FloatLayout):
         super(Main, self).__init__()
         self.vna_status="Desconectado"
         self.arduino_status = "Desconectado"
-        self.vna_conectado = 0                  #Para saber si esta algo conectado o no
-        self.arduino_conectado = 0              #Lo mismo pero para arduino
+        self.vna_conectado = 0                          #Para saber si esta algo conectado o no
+        self.arduino_conectado = 0                      #Lo mismo pero para arduino
+        self.flag = 0                                   #Solo para pruebas
+        Clock.schedule_interval(self.thread_test,0.1)   #Me "interrumpe" cada 2 seg
 
-    def update(self):
+    def thread_test(self,dt):
+        if self.flag == 0:
+            self.move_point(20,20)
+            self.flag = 1
+        else:
+            self.flag = 0
+            self.move_point(-20,-20)
+
+    def move_point(self,x,y):               #Deberia llevarlo a cualquier punto, no estaria andando
+        self.punto.posicion_x = x
+        self.punto.posicion_y = y
         self.punto.move()
-
-    def up(self):
-        self.punto.posicion_x =0
-        self.punto.posicion_y = 5
-        self.update()
-
-    def down(self):
-        self.punto.posicion_x =0
-        self.punto.posicion_y = -5
-        self.update()
-
-    def left(self):
-        self.punto.posicion_x =-5
-        self.punto.posicion_y = 0
-        self.update()
-
-    def right(self):
-        self.punto.posicion_x =5
-        self.punto.posicion_y = 0
-        self.update()
 
     def vna_popup(self):
         VNAConnectPopup(self.vna_popup_cb)
