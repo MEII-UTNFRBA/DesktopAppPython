@@ -63,6 +63,7 @@
                 pos: self.pos
                 size: self.size
         AsyncImage:
+            id:mongoimg
             opacity: 1
             size: self.texture_size
             source: './Img/smith_chart.png'
@@ -108,3 +109,78 @@
             color: 0,0,0,1
             bold: 1
             background_color:
+
+    BoxLayout:
+        id: vna_text
+        size_hint: (None,None)
+        size: (70,35)
+        opacity: 1
+        pos_hint: {'center_x':0.85, 'center_y':0.75}
+        TextInput:
+            multiline: False
+            font_size: 20
+            on_text_validate: root.ang_sel(self.text)
+
+    BoxLayout:
+        id: vna_text
+        size_hint: (None,None)
+        size: (120,30)
+        opacity: 1
+        pos_hint: {'center_x':0.72, 'center_y':0.75}
+        canvas.before:
+            Color:
+                rgba: (1,1,1,1)
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        Label:
+            size: self.size
+            text: "Ángulo deseado:"
+            color: 0,0,0,1
+            bold: 1
+            background_color:
+
+    Button:
+        id: ok
+        size_hint: (None, None)
+        height: 30
+        width: 70
+        pos_hint: {'center_x': 0.94, 'center_y':0.75}         # Con esto le digo donde va a estar
+        font_size: 14
+        text: "OK"
+        # border: (0,0,0,0)
+        bold: True
+        text_size: (self.width, self.height)
+        halign: 'center'
+        valign: 'middle'
+        on_press: root.ang_sel(vna_text.text)
+
+    Button:
+        id: start
+        size_hint: (None, None)
+        height: 30
+        width: 100
+        pos_hint: {'center_x': 0.74, 'center_y':0.68}         # Con esto le digo donde va a estar
+        font_size: 14
+        text: "Comenzar"
+        # border: (0,0,0,0)
+        bold: True
+        text_size: (self.width, self.height)
+        halign: 'center'
+        valign: 'middle'
+        on_press: root.start()
+
+    Button:
+        id: stop
+        size_hint: (None, None)
+        height: 30
+        width: 100
+        pos_hint: {'center_x': 0.88, 'center_y':0.68}         # Con esto le digo donde va a estar
+        font_size: 14
+        text: "Detener"
+        # border: (0,0,0,0)
+        bold: True
+        text_size: (self.width, self.height)
+        halign: 'center'
+        valign: 'middle'
+        on_press: root.stop()

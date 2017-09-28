@@ -12,7 +12,6 @@ from kivy.properties import NumericProperty, ReferenceListProperty
 from kivy.vector import Vector
 from kivy.clock import Clock
 
-
 rm = visa.ResourceManager()
 inst=[]
 
@@ -38,12 +37,12 @@ class Main(FloatLayout):
             self.flag = 1
         else:
             self.flag = 0
-            self.move_point(-20,-20)
+            self.move_point(00,00)
 
     def move_point(self,x,y):               #Deberia llevarlo a cualquier punto, no estaria andando
         self.punto.posicion_x = x
         self.punto.posicion_y = y
-        self.punto.move()
+        self.punto.move(self.ids.mongoimg.parent.center)
 
     def vna_popup(self):
         VNAConnectPopup(self.vna_popup_cb)
@@ -62,6 +61,15 @@ class Main(FloatLayout):
         self.arduino_conectado = status
         print(self.arduino_status)
         print(self.arduino_conectado)
+
+    def ang_sel(self,value):
+        print(value)
+
+    def stop(self):
+        pass
+
+    def start(self):
+        pass
 
 
 class VNAConnectPopup(Popup):
@@ -167,8 +175,8 @@ class PuntoEnGrafico(Widget):
     posicion_y = NumericProperty(0)
     posicion = ReferenceListProperty(posicion_x, posicion_y)
 
-    def move(self):
-        self.pos = Vector(self.posicion) + self.pos
+    def move(self,args):
+        self.pos = Vector(self.posicion) + args - (3,3)
 
 
 class MainApp(App):
