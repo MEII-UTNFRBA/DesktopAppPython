@@ -111,22 +111,23 @@
             background_color:
 
     BoxLayout:
-        id: vna_text
+        id: ang_input
         size_hint: (None,None)
         size: (70,35)
         opacity: 1
-        pos_hint: {'center_x':0.85, 'center_y':0.75}
+        pos_hint: {'center_x':0.8, 'center_y':0.75}
         TextInput:
+            id: ang_input_text
             multiline: False
             font_size: 20
-            on_text_validate: root.ang_sel(self.text)
+            on_text_validate: root.ang_sel()
 
     BoxLayout:
         id: vna_text
         size_hint: (None,None)
         size: (120,30)
         opacity: 1
-        pos_hint: {'center_x':0.72, 'center_y':0.75}
+        pos_hint: {'center_x':0.8, 'center_y':0.8}
         canvas.before:
             Color:
                 rgba: (1,1,1,1)
@@ -145,7 +146,7 @@
         size_hint: (None, None)
         height: 30
         width: 70
-        pos_hint: {'center_x': 0.94, 'center_y':0.75}         # Con esto le digo donde va a estar
+        pos_hint: {'center_x': 0.8, 'center_y':0.7}         # Con esto le digo donde va a estar
         font_size: 14
         text: "OK"
         # border: (0,0,0,0)
@@ -153,14 +154,14 @@
         text_size: (self.width, self.height)
         halign: 'center'
         valign: 'middle'
-        on_press: root.ang_sel(vna_text.text)
+        on_press: root.ang_sel_fnc()
 
     Button:
         id: start
         size_hint: (None, None)
         height: 30
         width: 100
-        pos_hint: {'center_x': 0.74, 'center_y':0.68}         # Con esto le digo donde va a estar
+        pos_hint: {'center_x': 0.5, 'center_y':0.53}         # Con esto le digo donde va a estar
         font_size: 14
         text: "Comenzar"
         # border: (0,0,0,0)
@@ -168,14 +169,14 @@
         text_size: (self.width, self.height)
         halign: 'center'
         valign: 'middle'
-        on_press: root.start()
+        on_press: root.start_fnc()
 
     Button:
         id: stop
         size_hint: (None, None)
         height: 30
         width: 100
-        pos_hint: {'center_x': 0.88, 'center_y':0.68}         # Con esto le digo donde va a estar
+        pos_hint: {'center_x': 0.5, 'center_y':0.47}         # Con esto le digo donde va a estar
         font_size: 14
         text: "Detener"
         # border: (0,0,0,0)
@@ -183,4 +184,4 @@
         text_size: (self.width, self.height)
         halign: 'center'
         valign: 'middle'
-        on_press: root.stop()
+        on_press: root.stop_fnc()

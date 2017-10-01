@@ -13,14 +13,15 @@ from kivy.vector import Vector
 from kivy.clock import Clock
 
 rm = visa.ResourceManager()
-inst=[]
+inst = []
 
 
 class Main(FloatLayout):
 
     vna_status = StringProperty()
     arduino_status = StringProperty()
-    punto = ObjectProperty(None)
+    ang_sel = 0
+    start = 0
 
     def __init__(self):
         super(Main, self).__init__()
@@ -31,7 +32,7 @@ class Main(FloatLayout):
         self.flag = 0                                   #Solo para pruebas
         Clock.schedule_interval(self.thread_test,0.1)   #Me "interrumpe" cada 2 seg
 
-    def thread_test(self,dt):
+    def thread_test(self, dt):
         if self.flag == 0:
             self.move_point(20,20)
             self.flag = 1
@@ -39,7 +40,7 @@ class Main(FloatLayout):
             self.flag = 0
             self.move_point(00,00)
 
-    def move_point(self,x,y):               #Deberia llevarlo a cualquier punto, no estaria andando
+    def move_point(self, x, y):               #Deberia llevarlo a cualquier punto, no estaria andando
         self.punto.posicion_x = x
         self.punto.posicion_y = y
         self.punto.move(self.ids.mongoimg.parent.center)
@@ -62,14 +63,42 @@ class Main(FloatLayout):
         print(self.arduino_status)
         print(self.arduino_conectado)
 
-    def ang_sel(self,value):
-        print(value)
+    def ang_sel_fnc(self):
 
-    def stop(self):
-        pass
+        a = self.ids.ang_input_text.text.lstrip('-').replace('.','',1)
+        b = self.ids.ang_input_text.text.lstrip('-')
+        if a.isdigit():
+            c = float(b)
+        else:
+            c = 1000
+        if not((a.isdigit()) and (c <= 360)):        #Para ver si es num o no
+            content = BoxLayout(orientation='vertical')
+            popup = Popup(title='Error',content=content,size_hint=(None,None),size=(200,200),auto_dismiss=False)
+            content.add_widget(Label(text='Angulo no valido'))
+            content.add_widget(Button(text='Cerrar',on_press=popup.dismiss))
+            popup.content=content
+            popup.open()
 
-    def start(self):
-        pass
+    def stop_fnc(self):
+        self.start = 0
+
+    def start_fnc(self):
+        a = self.ids.ang_input_text.text.lstrip('-').replace('.','',1)
+        b = self.ids.ang_input_text.text.lstrip('-')
+        if a.isdigit():
+            c = float(b)
+        else:
+            c = 1000
+        if not((a.isdigit()) and (c <= 360)):        #Para ver si es num o no
+            content = BoxLayout(orientation='vertical')
+            popup = Popup(title='Error',content=content,size_hint=(None,None),size=(200,200),auto_dismiss=False)
+            content.add_widget(Label(text='Angulo no valido'))
+            content.add_widget(Button(text='Cerrar',on_press=popup.dismiss))
+            popup.content=content
+            popup.open()
+            return
+        self.ang_sel = self.ids.ang_input_text.text
+        print(self.ang_sel)
 
 
 class VNAConnectPopup(Popup):
@@ -83,17 +112,29 @@ class VNAConnectPopup(Popup):
         self.vna_elegido = "Desconectado"               #HAY QUE SACARLO, esta solo para que no rompa Cancelar
         rm = visa.ResourceManager()
         a = ObjectProperty()
-        a = rm.list_resources(query=u'USB?*')
-        print(len(a))
-        print(a)
+#        a = rm.list_resources(query=u'USB?*')
+        a = rm.list_resources()
+        test = []
         if len(a) > 0:
+            for i in range(0,len(a)):
+                test.append(1)
+                try:
+                    inst_test = rm.open_resource(str(a[i]))
+                except visa.VisaIOError:
+                    test[i] = 0
+            indice = 0
+            inst_aux = []
+
+            for i in range(0,len(a)):
+                if test[i] == 1:
+                    inst_aux.append(a[i])
+        if len(inst_aux) > 0:
             box = BoxLayout(orientation='vertical')
-            for i in range(0, len(a)):
-                print(i)
-                inst = rm.open_resource(str(a[i-1]))
+            for i in range(0, len(inst_aux)):
+                inst = rm.open_resource(str(inst_aux[i]))
                 box.add_widget(Button(
                     text=str(inst.query("*IDN?")),
-                    on_press = lambda *args: VNAConnectPopup.hola(self, callback, a[i-1],1)))
+                    on_press = lambda *args: VNAConnectPopup.hola(self, callback, inst_aux[i],1)))
                 inst.close()
             self.title = 'Seleccione un equipo'
             self.content=box
@@ -138,10 +179,9 @@ class ArduinoConnectPopup(Popup):
         if len(a) > 0:
             box = BoxLayout(orientation='vertical')
             for i in range(0, len(a)):
-                print(i)
                 box.add_widget(Button(
-                    text=str(a[i-1]),
-                    on_press=lambda *args: ArduinoConnectPopup.hola(self, callback, a[i - 1],1)))
+                    text=str(a[i]),
+                    on_press=lambda *args: ArduinoConnectPopup.hola(self, callback, a[i],1)))
             self.title = 'Seleccione un equipo'
             self.content = box
             self.size_hint = (0.4, 0.4)
