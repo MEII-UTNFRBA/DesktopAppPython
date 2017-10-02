@@ -86,7 +86,7 @@
                 size: self.size
         Label:
             size: self.size
-            text: root.arduino_status
+            text: root.arduino_conectado
             color: 0,0,0,1
             bold: 1
             background_color:
@@ -105,7 +105,7 @@
                 size: self.size
         Label:
             size: self.size
-            text: root.vna_status
+            text: root.vna_showname
             color: 0,0,0,1
             bold: 1
             background_color:
@@ -185,3 +185,42 @@
         halign: 'center'
         valign: 'middle'
         on_press: root.stop_fnc()
+
+
+    BoxLayout:
+        id: mod_text
+        size_hint: (None,None)
+        size: (150,30)
+        opacity: 1
+        pos_hint: {'center_x':0.55, 'center_y':0.85}
+        canvas.before:
+            Color:
+                rgba: (1,1,1,1)
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        Label:
+            size: self.size
+            text: root.modulo_out
+            color: 0,0,0,1
+            bold: 1
+            background_color:
+
+    BoxLayout:
+        id: ang_text
+        size_hint: (None,None)
+        size: (150,30)
+        opacity: 1
+        pos_hint: {'center_x':0.55, 'center_y':0.75}
+        canvas.before:
+            Color:
+                rgba: (1,1,1,1)
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        Label:
+            size: self.size
+            text: root.angulo_out
+            color: 0,0,0,1
+            bold: 1
+            background_color:
