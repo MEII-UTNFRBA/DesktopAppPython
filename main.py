@@ -24,6 +24,7 @@ class Main(FloatLayout):
     start = 0
     modulo_out = StringProperty()
     angulo_out = StringProperty()
+    z_out = StringProperty()
 
     def __init__(self):
         super(Main, self).__init__()
@@ -33,20 +34,21 @@ class Main(FloatLayout):
         self.vna_status = 0                          #Para saber si esta algo conectado o no
         self.arduino_status = 0                      #Lo mismo pero para arduino
         self.flag = 0                                   #Solo para pruebas
-        Clock.schedule_interval(self.threadloop,0.1)   #Me "interrumpe" cada 2 seg
+        Clock.schedule_interval(self.threadloop,0.1)   #Me "interrumpe" cada 100 mseg
         self.rm = visa.ResourceManager()
         self.start = 0
         self.modulo_out=str("MOD: ")
         self.angulo_out=str("ANG: ")
+        self.z_out = str("")
 
 ### Loop cada 100ms ####################################################################################################
     def threadloop(self, dt):
-        if self.flag == 0:
-            self.move_point(20,20)
-            self.flag = 1
-        else:
-            self.flag = 0
-            self.move_point(00,00)
+#        if self.flag == 0:
+#            self.move_point(20,20)
+#            self.flag = 1
+#        else:
+#            self.flag = 0
+#            self.move_point(00,00)
         self.ArduinoTestConnection()
         self.VNATestConnection()
         if self.vna_status == 1 and self.start == 1:
@@ -191,8 +193,28 @@ class Main(FloatLayout):
 #         print('Angulo:', max(inst.query_ascii_values("CALC:DATA:FDAT?")))
 #        print('Mag:', math.sqrt(math.pow(prom_mongo_real, 2) + math.pow(prom_mongo_img, 2)))
 #        self.start = 0
-        self.angulo_out = str("ANG: %s" % round(math.degrees(math.atan(div)),2))
+        ang1 = round(math.degrees(math.atan(div)),2)
+        if prom_mongo_real>0 and prom_mongo_img>0:
+            ang = ang1
+        elif prom_mongo_real< 0 < prom_mongo_img:
+            ang = 180 + ang1
+        elif prom_mongo_real<0 and prom_mongo_img<0:
+            ang = -180 + ang1
+        else:
+            ang = ang1
+        self.angulo_out = str("ANG: %s" % ang)
         self.modulo_out = str("MOD: %s" % round(math.sqrt(math.pow(prom_mongo_real, 2) + math.pow(prom_mongo_img, 2)),2))
+#        self.angulo_out = str("Re: %s" % prom_mongo_real)
+#        self.modulo_out = str("Im: %s" % prom_mongo_img)
+        self.move_point(round(prom_mongo_real*120,0),round(prom_mongo_img*120,0))
+
+        z_aux = (1+complex(prom_mongo_real,prom_mongo_img))/(1-complex(prom_mongo_real,prom_mongo_img))*50
+        if prom_mongo_img<0:
+            z_posta = -1/(z_aux.imag*2*3.14159*pow(10,9))
+            self.z_out = str("C = %s" % z_posta)
+        else:
+            z_posta = z_aux.imag/(2*3.14159*pow(10,9))
+            self.z_out = str("L = %s" % z_posta)
 
 
     def arduino_lectura(self):

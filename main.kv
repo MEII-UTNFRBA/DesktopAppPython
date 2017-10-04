@@ -224,3 +224,22 @@
             color: 0,0,0,1
             bold: 1
             background_color:
+
+    BoxLayout:
+        id: z_text
+        size_hint: (None,None)
+        size: (190,30)
+        opacity: 1
+        pos_hint: {'center_x':0.8, 'center_y':0.1}
+        canvas.before:
+            Color:
+                rgba: (1,1,1,1)
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        Label:
+            size: self.size
+            text: root.z_out
+            color: 0,0,0,1
+            bold: 1
+            background_color:
