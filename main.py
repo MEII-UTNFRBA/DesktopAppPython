@@ -13,6 +13,7 @@ from kivy.clock import Clock
 import visa
 import serial
 import math
+from si_prefix import si_format
 
 
 class Main(FloatLayout):
@@ -161,6 +162,21 @@ class Main(FloatLayout):
             return
         self.ang_sel = self.ids.ang_input_text.text
         self.start = 1
+        self.ArduinoTestConnection()
+        self.VNATestConnection()
+        if self.vna_status == 1 and self.start == 1:
+            inst = self.rm.open_resource(str(self.vna_conectado))
+            print(inst.query("*IDN?"))
+            inst.write("INST:SEL 'NA'")
+            inst.write("CALC:FORM SMIT")
+            #        inst.write("DISP:MARK:LARG:A:DEF:TRAC1:MEAS S22")
+            inst.write("CALC:PAR:COUN 1")
+            inst.write("CALC:PAR1:DEF S22")
+            inst.write("FREQ:STAR 1E9")
+            inst.write("FREQ:STOP 1E9")
+            inst.write("CALC:MARK1 NORM")
+            #        inst.write(":FREQ:CENT 803000")          #Para el DSA815 (SA)
+            inst.close()
 
     def vna_lectura(self):
         try:
@@ -202,7 +218,7 @@ class Main(FloatLayout):
             ang = -180 + ang1
         else:
             ang = ang1
-        self.angulo_out = str("ANG: %s" % ang)
+        self.angulo_out = str("ANG: %s" % round(ang))
         self.modulo_out = str("MOD: %s" % round(math.sqrt(math.pow(prom_mongo_real, 2) + math.pow(prom_mongo_img, 2)),2))
 #        self.angulo_out = str("Re: %s" % prom_mongo_real)
 #        self.modulo_out = str("Im: %s" % prom_mongo_img)
@@ -211,11 +227,10 @@ class Main(FloatLayout):
         z_aux = (1+complex(prom_mongo_real,prom_mongo_img))/(1-complex(prom_mongo_real,prom_mongo_img))*50
         if prom_mongo_img<0:
             z_posta = -1/(z_aux.imag*2*3.14159*pow(10,9))
-            self.z_out = str("C = %s" % z_posta)
+            self.z_out = str("C = %sF" % si_format(z_posta,precision=2))
         else:
             z_posta = z_aux.imag/(2*3.14159*pow(10,9))
-            self.z_out = str("L = %s" % z_posta)
-
+            self.z_out = str("L = %sH" % si_format(z_posta,precision=2))
 
     def arduino_lectura(self):
         pass
@@ -299,19 +314,18 @@ class VNAConnectPopup(Popup):
         self.vna_elegido = vna_sel
         callback(self.vna_elegido,status,showname)               #Hay que ver si se rompe por esto
 #        inst = rm.open_resource(str(vna_elegido))      #Hay que ver como hacer para que no se rompa
-        print(str(self.vna_elegido))
-        inst = self.rm.open_resource(str(self.vna_elegido))
-        print(inst.query("*IDN?"))
-        inst.write("INST:SEL 'NA'")
-        inst.write("CALC:FORM SMIT")
-#        inst.write("DISP:MARK:LARG:A:DEF:TRAC1:MEAS S22")
-        inst.write("CALC:PAR:COUN 1")
-        inst.write("CALC:PAR1:DEF S22")
-        inst.write("FREQ:STAR 1E9")
-        inst.write("FREQ:STOP 1E9")
-        inst.write("CALC:MARK1 NORM")
+#        print(str(self.vna_elegido))
+#        inst = self.rm.open_resource(str(self.vna_elegido))
+#        print(inst.query("*IDN?"))
+#        inst.write("INST:SEL 'NA'")
+#        inst.write("CALC:FORM SMIT")
+#        inst.write("CALC:PAR:COUN 1")
+#        inst.write("CALC:PAR1:DEF S22")
+#        inst.write("FREQ:STAR 1E9")
+#        inst.write("FREQ:STOP 1E9")
+#        inst.write("CALC:MARK1 NORM")
 #        inst.write(":FREQ:CENT 803000")          #Para el DSA815 (SA)
-        inst.close()
+#        inst.close()
         self.dismiss()
 
 
