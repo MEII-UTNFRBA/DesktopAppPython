@@ -121,6 +121,11 @@ class Main(FloatLayout):
     def arduino_popup_cb(self, ar_sel, status):
         self.arduino_conectado = ar_sel
         self.arduino_status = status
+        s = serial.Serial(self.arduino_conectado)
+        s.write('I20000U\n')
+        print(s.readline())
+        s.close()
+
 
 ########################################################################################################################
 
@@ -175,8 +180,13 @@ class Main(FloatLayout):
             inst.write("FREQ:STAR 1E9")
             inst.write("FREQ:STOP 1E9")
             inst.write("CALC:MARK1 NORM")
-            #        inst.write(":FREQ:CENT 803000")          #Para el DSA815 (SA)
             inst.close()
+
+            s = serial.Serial(self.arduino_conectado)
+            s.write('DU\n')
+            s.write(str(c/360*15000))
+            s.close()
+            #        inst.write(":FREQ:CENT 803000")          #Para el DSA815 (SA)
 
     def vna_lectura(self):
         try:
@@ -215,14 +225,21 @@ class Main(FloatLayout):
         elif prom_mongo_real< 0 < prom_mongo_img:
             ang = 180 + ang1
         elif prom_mongo_real<0 and prom_mongo_img<0:
-            ang = -180 + ang1
+#            ang = -180 + ang1
+            ang = 180 + ang1
         else:
-            ang = ang1
+#            ang = ang1
+            ang = 360 + ang1
         self.angulo_out = str("ANG: %s" % round(ang))
         self.modulo_out = str("MOD: %s" % round(math.sqrt(math.pow(prom_mongo_real, 2) + math.pow(prom_mongo_img, 2)),2))
 #        self.angulo_out = str("Re: %s" % prom_mongo_real)
 #        self.modulo_out = str("Im: %s" % prom_mongo_img)
         self.move_point(round(prom_mongo_real*120,0),round(prom_mongo_img*120,0))
+
+#        if (round(ang)/float(self.ang_sel)) > 1:
+#            s = serial.Serial(self.arduino_conectado)
+#            s.write('S')
+#            s.close()
 
         z_aux = (1+complex(prom_mongo_real,prom_mongo_img))/(1-complex(prom_mongo_real,prom_mongo_img))*50
         if prom_mongo_img<0:
@@ -257,8 +274,9 @@ class VNAConnectPopup(Popup):
         super(VNAConnectPopup, self).__init__()
         self.vna_elegido = "Desconectado"               #HAY QUE SACARLO, esta solo para que no rompa Cancelar
         a = ObjectProperty()
-#        a = rm.list_resources(query=u'USB?*')
-        a = self.rm.list_resources()
+        a = self.rm.list_resources(query=u'USB?*')
+#        a = self.rm.list_resources()
+        print(a)
         test = []
         inst_aux = []
         if len(a) > 0:
@@ -266,6 +284,7 @@ class VNAConnectPopup(Popup):
                 test.append(1)
                 try:
                     inst_test = self.rm.open_resource(str(a[i]))
+                    var_aux = str(inst_test.query("*IDN?"))
                     inst_test.close()
                 except visa.VisaIOError:
                     test[i] = 0

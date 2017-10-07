@@ -12,11 +12,27 @@
 <Main>:
     punto: punto_graf
 
-    AsyncImage:
-        opacity: 1
-        size: self.texture_size
-        source: './Img/test.jpg'
-        allow_stretch: True
+#    AsyncImage:
+#        opacity: 1
+#        size: self.texture_size
+#    rgba: (1,0,0,1)
+#        source: './Img/test.jpg'
+#    allow_stretch: True
+
+    canvas:
+        Color:
+            rgb: (0.2, 0.2, 0.2)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    BoxLayout:
+        size: (200,50)
+        pos_hint: {'center_x':0.867, 'center_y':0.935}
+        AsyncImage:
+            size: self.texture_size
+            source: './Img/UTN_Logo.png'
+#            allow_stretch: True
 
     Button:
         id: vna_connect
@@ -40,7 +56,7 @@
         size_hint: (None, None)
         height: 30
         width: 150
-        pos_hint: {'center_x': 0.25, 'center_y':0.4}         # Con esto le digo donde va a estar
+        pos_hint: {'center_x': 0.25, 'center_y':0.65}         # Con esto le digo donde va a estar
         font_size: 14
         text: "Conectar con Arduino"
         # border: (0,0,0,0)
@@ -55,7 +71,7 @@
         id: smith
         size_hint: (None,None)
         size: (300,300)
-        pos_hint: {'center_x':0.8, 'center_y':0.4}
+        pos_hint: {'center_x':0.8, 'center_y':0.27}
         canvas.before:
             Color:
                 rgba: (0.95, 0.95, 0.95, 1)
@@ -75,9 +91,9 @@
     BoxLayout:
         id: port_text
         size_hint: (None,None)
-        size: (300,30)
+        size: (240,30)
         opacity: 1
-        pos_hint: {'center_x':0.25, 'center_y':0.35}
+        pos_hint: {'center_x':0.25, 'center_y':0.6}
         canvas.before:
             Color:
                 rgba: (1,1,1,1)
@@ -94,7 +110,7 @@
     BoxLayout:
         id: vna_text
         size_hint: (None,None)
-        size: (300,30)
+        size: (240,30)
         opacity: 1
         pos_hint: {'center_x':0.25, 'center_y':0.75}
         canvas.before:
@@ -113,21 +129,21 @@
     BoxLayout:
         id: ang_input
         size_hint: (None,None)
-        size: (70,35)
+        size: (120,35)
         opacity: 1
-        pos_hint: {'center_x':0.8, 'center_y':0.75}
+        pos_hint: {'center_x':0.68, 'center_y':0.66}
         TextInput:
             id: ang_input_text
             multiline: False
             font_size: 20
-            on_text_validate: root.ang_sel()
+            on_text_validate: root.ang_sel
 
     BoxLayout:
         id: vna_text
         size_hint: (None,None)
         size: (120,30)
         opacity: 1
-        pos_hint: {'center_x':0.8, 'center_y':0.8}
+        pos_hint: {'center_x':0.68, 'center_y':0.72}
         canvas.before:
             Color:
                 rgba: (1,1,1,1)
@@ -145,8 +161,8 @@
         id: ok
         size_hint: (None, None)
         height: 30
-        width: 70
-        pos_hint: {'center_x': 0.8, 'center_y':0.7}         # Con esto le digo donde va a estar
+        width: 120
+        pos_hint: {'center_x': 0.68, 'center_y':0.6}         # Con esto le digo donde va a estar
         font_size: 14
         text: "OK"
         # border: (0,0,0,0)
@@ -161,7 +177,7 @@
         size_hint: (None, None)
         height: 30
         width: 100
-        pos_hint: {'center_x': 0.5, 'center_y':0.53}         # Con esto le digo donde va a estar
+        pos_hint: {'center_x': 0.2, 'center_y':0.4}         # Con esto le digo donde va a estar
         font_size: 14
         text: "Comenzar"
         # border: (0,0,0,0)
@@ -176,7 +192,7 @@
         size_hint: (None, None)
         height: 30
         width: 100
-        pos_hint: {'center_x': 0.5, 'center_y':0.47}         # Con esto le digo donde va a estar
+        pos_hint: {'center_x': 0.2, 'center_y':0.3}         # Con esto le digo donde va a estar
         font_size: 14
         text: "Detener"
         # border: (0,0,0,0)
@@ -192,7 +208,7 @@
         size_hint: (None,None)
         size: (150,30)
         opacity: 1
-        pos_hint: {'center_x':0.55, 'center_y':0.85}
+        pos_hint: {'center_x':0.88, 'center_y':0.72}
         canvas.before:
             Color:
                 rgba: (1,1,1,1)
@@ -211,7 +227,7 @@
         size_hint: (None,None)
         size: (150,30)
         opacity: 1
-        pos_hint: {'center_x':0.55, 'center_y':0.75}
+        pos_hint: {'center_x':0.88, 'center_y':0.66}
         canvas.before:
             Color:
                 rgba: (1,1,1,1)
@@ -228,9 +244,9 @@
     BoxLayout:
         id: z_text
         size_hint: (None,None)
-        size: (190,30)
+        size: (150,30)
         opacity: 1
-        pos_hint: {'center_x':0.8, 'center_y':0.1}
+        pos_hint: {'center_x':0.88, 'center_y':0.6}
         canvas.before:
             Color:
                 rgba: (1,1,1,1)
