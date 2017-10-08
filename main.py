@@ -51,6 +51,7 @@ class Main(FloatLayout):
 ### Loop cada 100ms ####################################################################################################
 
     def threadloop(self, dt):
+        self.ModeSel_check()                            # En base al modo elegido, habilita o deshabilita widgets
         self.ArduinoTestConnection()                    # Chequea el estado del conexion del arduino
         self.VNATestConnection()                        # Chequea el estado de conexion del vna
         if self.vna_status == 1 and self.start == 1:
@@ -58,6 +59,159 @@ class Main(FloatLayout):
         if self.arduino_status == 1 and self.start == 1:
             pass
 #            self.arduino_lectura()
+
+########################################################################################################################
+### Chequea el modo elegido y, en base a eso, habilita o deshabilita widgets ###########################################
+
+    def ModeSel_check(self):
+        if self.ids.calibracionprecision_checkbox.active:
+            # Deshabilito el Comenzar y Detener
+            self.ids.start.disabled = False
+            self.ids.stop.disabled = False
+
+            # Activo lo que tenga que ver con el vna
+            self.ids.vna_connect.disabled = False
+            self.ids.vna_text.disabled = False
+            self.ids.calibracion_puerto_text.disabled = False
+            self.ids.calibracion_seteo_puerto1.disabled = False
+            self.ids.calibracion_seteo_puerto1_text.disabled = False
+            self.ids.calibracion_seteo_puerto2.disabled = False
+            self.ids.calibracion_seteo_puerto2_text.disabled = False
+
+            #Dejo solo la seleccion de frecuencia como input
+            self.ids.freq_text.disabled = False
+            self.ids.freq_input.disabled = False
+            self.ids.freq_text_unidad.disabled = False
+            self.ids.frec_precision.disabled = True
+
+            # Deshabilito el seteo de componente o angulo
+            self.ids.angcomp_text.disabled = True
+            self.ids.angcomp_input.disabled = True
+            self.ids.angcomp_seteo_angulo.disabled = True
+            self.ids.angcomp_seteo_angulo_text.disabled = True
+            self.ids.angcomp_seteo_capacitor.disabled = True
+            self.ids.angcomp_seteo_c_text.disabled = True
+            self.ids.angcomp_seteo_inductor.disabled = True
+            self.ids.angcomp_seteo_l_text.disabled = True
+
+        elif self.ids.calibracionrapida_checkbox.active:
+            # Deshabilito el Comenzar y Detener
+            self.ids.start.disabled = False
+            self.ids.stop.disabled = False
+
+            # Activo lo que tenga que ver con el vna
+            self.ids.vna_connect.disabled = False
+            self.ids.vna_text.disabled = False
+            self.ids.calibracion_puerto_text.disabled = False
+            self.ids.calibracion_seteo_puerto1.disabled = False
+            self.ids.calibracion_seteo_puerto1_text.disabled = False
+            self.ids.calibracion_seteo_puerto2.disabled = False
+            self.ids.calibracion_seteo_puerto2_text.disabled = False
+
+            #Saco lo que tenga que ver con seleccion de frecuencia
+            self.ids.freq_text.disabled = True
+            self.ids.freq_input.disabled = True
+            self.ids.freq_text_unidad.disabled =True
+            self.ids.frec_precision.disabled = True
+
+            # Deshabilito el seteo de componente o angulo
+            self.ids.angcomp_text.disabled = True
+            self.ids.angcomp_input.disabled = True
+            self.ids.angcomp_seteo_angulo.disabled = True
+            self.ids.angcomp_seteo_angulo_text.disabled = True
+            self.ids.angcomp_seteo_capacitor.disabled = True
+            self.ids.angcomp_seteo_c_text.disabled = True
+            self.ids.angcomp_seteo_inductor.disabled = True
+            self.ids.angcomp_seteo_l_text.disabled = True
+
+        elif self.ids.openloopprecision_checkbox.active:
+            # Deshabilito el Comenzar y Detener
+            self.ids.start.disabled = False
+            self.ids.stop.disabled = False
+
+            # Desactivo lo que tenga que ver con el vna
+            self.ids.vna_connect.disabled = True
+            self.ids.vna_text.disabled = True
+            self.ids.calibracion_puerto_text.disabled = True
+            self.ids.calibracion_seteo_puerto1.disabled = True
+            self.ids.calibracion_seteo_puerto1_text.disabled = True
+            self.ids.calibracion_seteo_puerto2.disabled = True
+            self.ids.calibracion_seteo_puerto2_text.disabled = True
+
+            # Dejo solo la seleccion de frecuencia como seleccion especifica
+            self.ids.freq_text.disabled = False
+            self.ids.freq_input.disabled = True
+            self.ids.freq_text_unidad.disabled = True
+            self.ids.frec_precision.disabled = False
+
+            # Habilito el seteo de componente o angulo
+            self.ids.angcomp_text.disabled = False
+            self.ids.angcomp_input.disabled = False
+            self.ids.angcomp_seteo_angulo.disabled = False
+            self.ids.angcomp_seteo_angulo_text.disabled = False
+            self.ids.angcomp_seteo_capacitor.disabled = False
+            self.ids.angcomp_seteo_c_text.disabled = False
+            self.ids.angcomp_seteo_inductor.disabled = False
+            self.ids.angcomp_seteo_l_text.disabled = False
+
+        elif self.ids.openlooprapido_checkbox.active:
+            # Deshabilito el Comenzar y Detener
+            self.ids.start.disabled = False
+            self.ids.stop.disabled = False
+
+            # Desactivo lo que tenga que ver con el vna
+            self.ids.vna_connect.disabled = True
+            self.ids.vna_text.disabled = True
+            self.ids.calibracion_puerto_text.disabled = True
+            self.ids.calibracion_seteo_puerto1.disabled = True
+            self.ids.calibracion_seteo_puerto1_text.disabled = True
+            self.ids.calibracion_seteo_puerto2.disabled = True
+            self.ids.calibracion_seteo_puerto2_text.disabled = True
+
+            # Dejo solo la seleccion de frecuencia como input
+            self.ids.freq_text.disabled = False
+            self.ids.freq_input.disabled = False
+            self.ids.freq_text_unidad.disabled = False
+            self.ids.frec_precision.disabled = True
+
+            # Habilito el seteo de componente o angulo
+            self.ids.angcomp_text.disabled = False
+            self.ids.angcomp_input.disabled = False
+            self.ids.angcomp_seteo_angulo.disabled = False
+            self.ids.angcomp_seteo_angulo_text.disabled = False
+            self.ids.angcomp_seteo_capacitor.disabled = False
+            self.ids.angcomp_seteo_c_text.disabled = False
+            self.ids.angcomp_seteo_inductor.disabled = False
+            self.ids.angcomp_seteo_l_text.disabled = False
+
+        else:
+            # Desactivo lo que tenga que ver con el vna
+            self.ids.vna_connect.disabled = True
+            self.ids.calibracion_puerto_text.disabled = True
+            self.ids.calibracion_seteo_puerto1.disabled = True
+            self.ids.calibracion_seteo_puerto1_text.disabled = True
+            self.ids.calibracion_seteo_puerto2.disabled = True
+            self.ids.calibracion_seteo_puerto2_text.disabled = True
+
+            # Desactivo lo de frecuencia
+            self.ids.freq_text.disabled = True
+            self.ids.freq_input.disabled = True
+            self.ids.freq_text_unidad.disabled = True
+            self.ids.frec_precision.disabled = True
+
+            # Deshabilito el seteo de componente o angulo
+            self.ids.angcomp_text.disabled = True
+            self.ids.angcomp_input.disabled = True
+            self.ids.angcomp_seteo_angulo.disabled = True
+            self.ids.angcomp_seteo_angulo_text.disabled = True
+            self.ids.angcomp_seteo_capacitor.disabled = True
+            self.ids.angcomp_seteo_c_text.disabled = True
+            self.ids.angcomp_seteo_inductor.disabled = True
+            self.ids.angcomp_seteo_l_text.disabled = True
+
+            # Deshabilito el Comenzar y Detener
+            self.ids.start.disabled = True
+            self.ids.stop.disabled = True
 
 ########################################################################################################################
 ### Test connections para ambos instrumentos (se hacen en el loop constantemente) ######################################
