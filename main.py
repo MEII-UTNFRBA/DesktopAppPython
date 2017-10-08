@@ -31,7 +31,7 @@ class Main(FloatLayout):
     modulo_out = StringProperty()
     angulo_out = StringProperty()
     z_out = StringProperty()
-    frec_ol = ["First thing", "Second thing", "Third thing"]
+#    frec_ol = ["First thing", "Second thing", "Third thing"]
 
     def __init__(self):
         super(Main, self).__init__()
@@ -237,7 +237,7 @@ class Main(FloatLayout):
         self.start = 0
 
 ########################################################################################################################
-### Funcion correspondiente al boton "Comenzar# ########################################################################
+### Funcion correspondiente al boton "Comenzar" ########################################################################
 
     def start_fnc(self):                                                    # Se hace lo mismo que con el ok de angsel
         a = self.ids.ang_input_text.text.lstrip('-').replace('.','',1)
