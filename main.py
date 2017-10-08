@@ -14,6 +14,11 @@ import visa
 import serial
 import math
 from si_prefix import si_format
+from kivy.config import Config
+
+
+Config.set('graphics', 'resizable', False)              # Para que no se deforme por resizear
+Config.set('kivy', 'exit_on_escape', '0')               # Para que no se cierre cuando se toca "Esc"
 
 
 class Main(FloatLayout):
@@ -26,60 +31,55 @@ class Main(FloatLayout):
     modulo_out = StringProperty()
     angulo_out = StringProperty()
     z_out = StringProperty()
+    frec_ol = ["First thing", "Second thing", "Third thing"]
 
     def __init__(self):
         super(Main, self).__init__()
-        self.vna_conectado = "Desconectado"             #Indica cual vna esta conectado (o dc si no hay)
-        self.arduino_conectado = "Desconectado"         #Indica en cual port esta conectado el arduino (o dc si no hay)
-        self.vna_showname = "Desconectado"
-        self.vna_status = 0                          #Para saber si esta algo conectado o no
-        self.arduino_status = 0                      #Lo mismo pero para arduino
-        self.flag = 0                                   #Solo para pruebas
-        Clock.schedule_interval(self.threadloop,0.1)   #Me "interrumpe" cada 100 mseg
-        self.rm = visa.ResourceManager()
-        self.start = 0
-        self.modulo_out=str("MOD: ")
-        self.angulo_out=str("ANG: ")
-        self.z_out = str("")
+        self.vna_conectado = "Desconectado"             # Indica cual vna esta conectado (o dc si no hay)
+        self.arduino_conectado = "Desconectado"         # Indica en cual port esta conectado el arduino (o dc si no hay)
+        self.vna_showname = "Desconectado"              # El nombre que muestra (asi aparece solo fabr y modelo)
+        self.vna_status = 0                             # Para saber si esta algo conectado o no
+        self.arduino_status = 0                         # Lo mismo pero para arduino
+        Clock.schedule_interval(self.threadloop,0.1)    # Me "interrumpe" cada 100 mseg
+        self.rm = visa.ResourceManager()                # rm es un "tipo" visa
+        self.start = 0                                  # Para los botones "Comenzar" y "Detener"
+        self.modulo_out=str("MOD: ")                    # String que indica en pantalla lo dicho
+        self.angulo_out=str("ANG: ")                    # String que indica en pantalla lo dicho
+        self.z_out = str("COMP: ")                      # String que indica en pantalla lo dicho
 
+########################################################################################################################
 ### Loop cada 100ms ####################################################################################################
+
     def threadloop(self, dt):
-#        if self.flag == 0:
-#            self.move_point(20,20)
-#            self.flag = 1
-#        else:
-#            self.flag = 0
-#            self.move_point(00,00)
-        self.ArduinoTestConnection()
-        self.VNATestConnection()
+        self.ArduinoTestConnection()                    # Chequea el estado del conexion del arduino
+        self.VNATestConnection()                        # Chequea el estado de conexion del vna
         if self.vna_status == 1 and self.start == 1:
-            self.vna_lectura()
+            self.vna_lectura()                          # Se ejecuta solo si comenzo y si esta seleccionado el vna
         if self.arduino_status == 1 and self.start == 1:
             pass
 #            self.arduino_lectura()
 
 ########################################################################################################################
-
 ### Test connections para ambos instrumentos (se hacen en el loop constantemente) ######################################
 
     def ArduinoTestConnection(self):
-        if self.arduino_conectado != "Desconectado":
+        if self.arduino_conectado != "Desconectado":        # Si esta desconectado, no hace falta chequear conn
             try:
                 s = serial.Serial(self.arduino_conectado)
                 s.close()
-            except (OSError, serial.SerialException):
+            except (OSError, serial.SerialException):       # En caso que no pueda conectarme con el arduino
                 self.arduino_conectado = "Desconectado"
-                if self.start == 1:
-                    self.start_error(1,0)        # arg1: Arduino
+                if self.start == 1:                         # Si habia comenzado, salta un popup diciendo que se
+                                                            #desconecto el arduino
+                    self.start_error(1,0)                   # arg1: Arduino
                     self.start = 0
                 self.arduino_status = 0
-        elif self.start == 1:
-                self.start_error(1,0)        # arg1: Arduino
+        elif self.start == 1:                               # Si esta dc, no tendria ni que estar activo!
+                self.start_error(1,0)                       # arg1: Arduino
                 self.start = 0
                 self.arduino_status = 0
 
-
-    def VNATestConnection(self):
+    def VNATestConnection(self):                            # Mismo principio que el de arduino
         if self.vna_conectado != "Desconectado":
             try:
                 inst_test = self.rm.open_resource(self.vna_conectado)
@@ -88,171 +88,79 @@ class Main(FloatLayout):
                 self.vna_conectado = "Desconectado"
                 self.vna_showname = "Desconectado"
                 if self.start == 1:
-                    self.start_error(0,1)        # arg2: VNA
+                    self.start_error(0,1)                   # arg2: VNA
                     self.start = 0
                 self.vna_status = 0
         elif self.start == 1:
-                self.start_error(0,1)        # arg2: VNA
+                self.start_error(0,1)                       # arg2: VNA
                 self.start = 0
                 self.vna_status = 0
 
-
 ########################################################################################################################
-
-    def move_point(self, x, y):               #Deberia llevarlo a cualquier punto, no estaria andando
-        self.punto.posicion_x = x
-        self.punto.posicion_y = y
-        self.punto.move(self.ids.mongoimg.parent.center)
-
-    def vna_popup(self):
-        VNAConnectPopup(self.vna_popup_cb)
-
-    def arduino_popup(self):
-        ArduinoConnectPopup(self.arduino_popup_cb)
-
-
-### Callbacks de las funciones de popup para elegir instrumentos #######################################################
-
-    def vna_popup_cb(self, vna_sel, status, showname):
-        self.vna_showname = showname
-        self.vna_conectado = vna_sel
-        self.vna_status = status
-
-    def arduino_popup_cb(self, ar_sel, status):
-        self.arduino_conectado = ar_sel
-        self.arduino_status = status
-        s = serial.Serial(self.arduino_conectado)
-        s.write('I20000U\n')
-        print(s.readline())
-        s.close()
-
-
-########################################################################################################################
-
-### Seleccion del angulo (el recuadro) #################################################################################
-    def ang_sel_fnc(self):
-        a = self.ids.ang_input_text.text.lstrip('-').replace('.','',1)
-        b = self.ids.ang_input_text.text.lstrip('-')
-        if a.isdigit():
-            c = float(b)
-        else:
-            c = 1000
-        if not((a.isdigit()) and (c <= 360)):        #Para ver si es num o no
-            content = BoxLayout(orientation='vertical')
-            popup = Popup(title='Error',content=content,size_hint=(None,None),size=(200,200),auto_dismiss=False)
-            content.add_widget(Label(text='Angulo no valido'))
-            content.add_widget(Button(text='Cerrar',on_press=popup.dismiss))
-            popup.content=content
-            popup.open()
-
-########################################################################################################################
-
-    def stop_fnc(self):
-        self.start = 0
-
-    def start_fnc(self):
-        a = self.ids.ang_input_text.text.lstrip('-').replace('.','',1)
-        b = self.ids.ang_input_text.text.lstrip('-')
-        if a.isdigit():
-            c = float(b)
-        else:
-            c = 1000
-        if not((a.isdigit()) and (c <= 360)):        #Para ver si es num o no
-            content = BoxLayout(orientation='vertical')
-            popup = Popup(title='Error',content=content,size_hint=(None,None),size=(200,200),auto_dismiss=False)
-            content.add_widget(Label(text='Angulo no valido'))
-            content.add_widget(Button(text='Cerrar',on_press=popup.dismiss))
-            popup.content=content
-            popup.open()
-            return
-        self.ang_sel = self.ids.ang_input_text.text
-        self.start = 1
-        self.ArduinoTestConnection()
-        self.VNATestConnection()
-        if self.vna_status == 1 and self.start == 1:
-            inst = self.rm.open_resource(str(self.vna_conectado))
-            print(inst.query("*IDN?"))
-            inst.write("INST:SEL 'NA'")
-            inst.write("CALC:FORM SMIT")
-            #        inst.write("DISP:MARK:LARG:A:DEF:TRAC1:MEAS S22")
-            inst.write("CALC:PAR:COUN 1")
-            inst.write("CALC:PAR1:DEF S22")
-            inst.write("FREQ:STAR 1E9")
-            inst.write("FREQ:STOP 1E9")
-            inst.write("CALC:MARK1 NORM")
-            inst.close()
-
-            s = serial.Serial(self.arduino_conectado)
-            s.write('DU\n')
-            s.write(str(c/360*15000))
-            s.close()
-            #        inst.write(":FREQ:CENT 803000")          #Para el DSA815 (SA)
+### Lectura del vna cuando esta corriendo el programa ##################################################################
 
     def vna_lectura(self):
         try:
             inst = self.rm.open_resource(self.vna_conectado)
-            mongo2 = inst.query_ascii_values("CALC:SEL:DATA:SDAT?")             #Para leer real imag
+            measure = inst.query_ascii_values("CALC:SEL:DATA:SDAT?")        # Para leer real imag
             inst.close()
-        except visa.VisaIOError:
+        except visa.VisaIOError:                                            # Si no se puede hacer, es que se dc o algo
             self.vna_status = 0
             return
 
-        mongo_real = []
-        mongo_img = []
-        for i in range(0,len(mongo2)):
+        measure_real = []
+        measure_img = []
+        for i in range(0, len(measure)):                                    # Lo separo en real e img
             if (i % 2) == 1:
-                mongo_img.append(mongo2[i])
+                measure_img.append(measure[i])
             else:
-                mongo_real.append(mongo2[i])
+                measure_real.append(measure[i])
 
-        prom_mongo_real = sum(mongo_real) / len(mongo_real)
-#        print("Parte real: %s" % prom_mongo_real)
-        prom_mongo_img = sum(mongo_img) / len(mongo_img)
-#        print("Parte imaginaria: %s" % prom_mongo_img)
-        div = prom_mongo_img / prom_mongo_real
-#        if prom_mongo_real*prom_mongo_img < 0:
-#            print('Angulo: %s' % (180+math.degrees(math.atan(div))))
-#        elif (prom_mongo_real*prom_mongo_img < 0) and (prom_mongo_real >0):
-#            print('Angulo: %s' % (-180+math.degrees(math.atan(div))))
-#        else:
-#            print('Angulo:', (math.degrees(math.atan(div))))
-#         print('Angulo:', max(inst.query_ascii_values("CALC:DATA:FDAT?")))
-#        print('Mag:', math.sqrt(math.pow(prom_mongo_real, 2) + math.pow(prom_mongo_img, 2)))
-#        self.start = 0
-        ang1 = round(math.degrees(math.atan(div)),2)
-        if prom_mongo_real>0 and prom_mongo_img>0:
+        prom_measure_real = sum(measure_real) / len(measure_real)           # Hago el promedio de ambas partes
+        prom_measure_img = sum(measure_img) / len(measure_img)
+        div = prom_measure_img / prom_measure_real                          # Hago la div de ambas
+        ang1 = round(math.degrees(math.atan(div)), 2)                       # Calculo el angulo
+        if prom_measure_real > 0 and prom_measure_img > 0:                  # Correccion del angulo para tenerlo de
+                                                                            #0 a 360 grados
             ang = ang1
-        elif prom_mongo_real< 0 < prom_mongo_img:
+        elif prom_measure_real < 0 < prom_measure_img:
             ang = 180 + ang1
-        elif prom_mongo_real<0 and prom_mongo_img<0:
-#            ang = -180 + ang1
+        elif prom_measure_real < 0 and prom_measure_img < 0:
             ang = 180 + ang1
         else:
-#            ang = ang1
             ang = 360 + ang1
-        self.angulo_out = str("ANG: %s" % round(ang))
-        self.modulo_out = str("MOD: %s" % round(math.sqrt(math.pow(prom_mongo_real, 2) + math.pow(prom_mongo_img, 2)),2))
-#        self.angulo_out = str("Re: %s" % prom_mongo_real)
-#        self.modulo_out = str("Im: %s" % prom_mongo_img)
-        self.move_point(round(prom_mongo_real*120,0),round(prom_mongo_img*120,0))
 
-#        if (round(ang)/float(self.ang_sel)) > 1:
-#            s = serial.Serial(self.arduino_conectado)
-#            s.write('S')
-#            s.close()
+        mod = round(math.sqrt(math.pow(prom_measure_real, 2) + math.pow(prom_measure_img, 2)), 2)   # Calculo modulo
+        self.angulo_out = str("ANG: %s" % round(ang))                       # Lo que va a imprimir con el angulo
+        self.modulo_out = str("MOD: %s" % mod)                              # Lo que va a imprimir con el modulo
+        #        self.angulo_out = str("Re: %s" % prom_mongo_real)
+        #        self.modulo_out = str("Im: %s" % prom_mongo_img)
+        self.move_point(round(prom_measure_real * 120, 0), round(prom_measure_img * 120, 0))    # Mueve el punto
 
-        z_aux = (1+complex(prom_mongo_real,prom_mongo_img))/(1-complex(prom_mongo_real,prom_mongo_img))*50
-        if prom_mongo_img<0:
-            z_posta = -1/(z_aux.imag*2*3.14159*pow(10,9))
-            self.z_out = str("C = %sF" % si_format(z_posta,precision=2))
+        #        if (round(ang)/float(self.ang_sel)) > 1:
+        #            s = serial.Serial(self.arduino_conectado)
+        #            s.write('S')
+        #            s.close()
+
+        s_complex = complex(prom_measure_real, prom_measure_img)            # Paso la medicion a compleja
+        z_aux = (1 + s_complex) / (1 - s_complex) * 50                      # Calculo la impedancia
+        if prom_measure_img < 0:                                            # Imprime la L o C en base a la freq
+            z_posta = -1 / (z_aux.imag * 2 * 3.14159 * pow(10, 9))
+            self.z_out = str("COMP: C = %sF" % si_format(z_posta, precision=2))
         else:
-            z_posta = z_aux.imag/(2*3.14159*pow(10,9))
-            self.z_out = str("L = %sH" % si_format(z_posta,precision=2))
+            z_posta = z_aux.imag / (2 * 3.14159 * pow(10, 9))
+            self.z_out = str("COMP: L = %sH" % si_format(z_posta, precision=2))
+
+########################################################################################################################
+### Lectura del arduino cuando esta corriendo el programa ##############################################################
 
     def arduino_lectura(self):
         pass
 
-    def start_error(self,arduino,vna):
+########################################################################################################################
+### Error en caso de que estaba corriendo el programa y se desconecto algun equipo #####################################
+
+    def start_error(self, arduino, vna):
         content = BoxLayout(orientation='vertical')
         popup = Popup(title='Error', content=content, size_hint=(None, None), size=(200, 200), auto_dismiss=False)
         if arduino == 1:
@@ -263,6 +171,114 @@ class Main(FloatLayout):
         popup.content = content
         popup.open()
         self.start = 0
+
+########################################################################################################################
+### Funcion para mover el punto dentro del smith #######################################################################
+
+    def move_point(self, x, y):                             # Le paso la pos x,y que quiero (Esta referido al centro del
+                                                            #diagrama de smith utilizado)
+        self.punto.posicion_x = x
+        self.punto.posicion_y = y
+        self.punto.move(self.ids.smith_img.parent.center)   # Como bien lo dice, mueve el punto a la pos x,y
+
+########################################################################################################################
+### Popups para conectarse tanto con arduino como con el vna ###########################################################
+
+    def vna_popup(self):
+        VNAConnectPopup(self.vna_popup_cb)
+
+    def arduino_popup(self):
+        ArduinoConnectPopup(self.arduino_popup_cb)
+
+
+########################################################################################################################
+### Callbacks de las funciones de popup para elegir instrumentos #######################################################
+
+    def vna_popup_cb(self, vna_sel, status, showname):
+        self.vna_showname = showname                    # El nombre que va a mostrar en la pantalla del equipo
+        self.vna_conectado = vna_sel                    # Aca esta guardado el comando que se usa para abrir el vna
+        self.vna_status = status                        # Activa el vna
+
+    def arduino_popup_cb(self, ar_sel, status):
+        self.arduino_conectado = ar_sel                 # Sirve tanto como para mostar el nombre como para llamarlo
+        self.arduino_status = status                    # Activa el arduino
+
+        # Mueve el stub a alguno de los dos extremos, o sea, los fines de carrera para tener una referencia.
+        s = serial.Serial(self.arduino_conectado)
+        s.write('I20000U\n')
+        print(s.readline())
+        s.close()
+
+
+########################################################################################################################
+### Seleccion del angulo (el recuadro) #################################################################################
+
+    def ang_sel_fnc(self):
+        a = self.ids.ang_input_text.text.lstrip('-').replace('.','',1)      # Le saco al numero el signo y la coma
+        b = self.ids.ang_input_text.text.lstrip('-')                        # A este solo le saco el signo
+        if a.isdigit():                                                     # Me fijo si el numero pelado corresponde
+                                                                            #a un digito valido
+            c = float(b)                                                    # De ser asi lo guardo en c
+        else:
+            c = 1000
+        if not((a.isdigit()) and (c <= 360)):                               # Si no es angulo valido, tira error (tiene
+                                                                            #que ser entre 0 y 360)
+            content = BoxLayout(orientation='vertical')
+            popup = Popup(title='Error',content=content,size_hint=(None,None),size=(200,200),auto_dismiss=False)
+            content.add_widget(Label(text='Angulo no valido'))
+            content.add_widget(Button(text='Cerrar',on_press=popup.dismiss))
+            popup.content=content
+            popup.open()
+
+########################################################################################################################
+### Funcion correspondiente al boton "Detener# #########################################################################
+
+    def stop_fnc(self):
+        self.start = 0
+
+########################################################################################################################
+### Funcion correspondiente al boton "Comenzar# ########################################################################
+
+    def start_fnc(self):                                                    # Se hace lo mismo que con el ok de angsel
+        a = self.ids.ang_input_text.text.lstrip('-').replace('.','',1)
+        b = self.ids.ang_input_text.text.lstrip('-')
+        if a.isdigit():
+            c = float(b)
+        else:
+            c = 1000
+        if not((a.isdigit()) and (c <= 360)):                               #Para ver si es num o no
+            content = BoxLayout(orientation='vertical')
+            popup = Popup(title='Error',content=content,size_hint=(None,None),size=(200,200),auto_dismiss=False)
+            content.add_widget(Label(text='Angulo no valido'))
+            content.add_widget(Button(text='Cerrar',on_press=popup.dismiss))
+            popup.content=content
+            popup.open()
+            return
+        self.ang_sel = self.ids.ang_input_text.text                         # Carga el valor del angulo
+        self.start = 1                                                      # Hace que comience el programa
+        self.ArduinoTestConnection()                                        # Checks profilacticos
+        self.VNATestConnection()
+        if self.vna_status == 1 and self.start == 1:                        # Por si las moscas tambien
+            inst = self.rm.open_resource(str(self.vna_conectado))
+            print(inst.query("*IDN?"))
+            inst.write("INST:SEL 'NA'")
+            inst.write("CALC:FORM SMIT")
+            #        inst.write("DISP:MARK:LARG:A:DEF:TRAC1:MEAS S22")
+            inst.write("CALC:PAR:COUN 1")
+
+            # Estos habria que ponerlos para que se puedan ajustar despues
+            inst.write("CALC:PAR1:DEF S22")
+            inst.write("FREQ:STAR 1E9")
+            inst.write("FREQ:STOP 1E9")
+            ##############################################################
+            inst.write("CALC:MARK1 NORM")
+            inst.close()
+
+            s = serial.Serial(self.arduino_conectado)
+            s.write('DU\n')
+            s.write(str(c/360*15000))
+            s.close()
+            #        inst.write(":FREQ:CENT 803000")          #Para el DSA815 (SA)
 
 
 class VNAConnectPopup(Popup):
