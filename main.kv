@@ -215,12 +215,13 @@
             background_color:
 
     Spinner:
-        id: stub_sel
+        id: stub_sel_id
         size_hint:(None,None)
         size:(200,30)
         pos_hint: {'center_x': 0.13, 'center_y':0.7}         # Con esto le digo donde va a estar
         text: "Seleccionar"
-#        values: root.frec_ol
+        values: root.stubs
+        on_text: root.on_stub_selected()
 
 ########################################################################################################################
 ### Seleccion del puerto a utilizar del vna ############################################################################
@@ -244,7 +245,7 @@
         id: calibracion_seteo_puerto1
         size_hint: (None, None)
         size: (20,20)
-#        height: '48dp'
+#        height: '68dp'
         pos_hint: {'center_x':0.015, 'center_y':0.54}
         active: True
         group: 'puerto_sel'
