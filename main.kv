@@ -234,7 +234,7 @@
         pos_hint: {'center_x':0.13, 'center_y':0.6}
         Label:
             size: self.size
-            text: "Puerto a utilizar:"
+            text: "Puerto del VNA a utilizar:"
             text_size: self.size
             color: 1,1,1,1
             bold: 1
@@ -249,6 +249,7 @@
         pos_hint: {'center_x':0.015, 'center_y':0.54}
         active: True
         group: 'puerto_sel'
+        allow_no_selection: False
 
     BoxLayout:
         id: calibracion_seteo_puerto1_text
@@ -271,6 +272,7 @@
         pos_hint: {'center_x':0.015, 'center_y':0.49}
         active: False
         group: 'puerto_sel'
+        allow_no_selection: False
 
     BoxLayout:
         id: calibracion_seteo_puerto2_text
@@ -313,6 +315,7 @@
         pos_hint: {'center_x': 0.015, 'center_y': 0.34}
         active: True
         group: 'operation_mode'
+        allow_no_selection: False
 
     BoxLayout:
         id: calibracionprecision_text
@@ -336,6 +339,7 @@
 #        height: '48dp'
         pos_hint: {'center_x': 0.015, 'center_y': 0.29}
         group: 'operation_mode'
+        allow_no_selection: False
 
     BoxLayout:
         id: calibracionrapida_text
@@ -360,6 +364,7 @@
         pos_hint: {'center_x': 0.015, 'center_y': 0.24}
         active: False
         group: 'operation_mode'
+        allow_no_selection: False
 
     BoxLayout:
         id: openloopprecision_text
@@ -384,6 +389,7 @@
         pos_hint: {'center_x': 0.015, 'center_y': 0.19}
         active: False
         group: 'operation_mode'
+        allow_no_selection: False
 
     BoxLayout:
         id: openlooprapido_text
@@ -422,7 +428,7 @@
         opacity: 1
         pos_hint: {'center_x':0.42, 'center_y':0.37}
         TextInput:
-            id: ang_input_text
+            id: freq_input_text
             multiline: False
             font_size: 20
 #            on_text_validate: root.openlooprapido_freq_input
@@ -474,7 +480,7 @@
         opacity: 1
         pos_hint: {'center_x':0.42, 'center_y':0.2}
         TextInput:
-            id: ang_input_text
+            id: angcomp_input_text
             multiline: False
             font_size: 20
 #            on_text_validate: root.openlooprapido_freq_input
@@ -485,9 +491,9 @@
         size: (20,20)
 #        height: '48dp'
         pos_hint: {'center_x': 0.5, 'center_y': 0.24}
-        active: False
         group: 'component_sel'
         active: True
+        allow_no_selection: False
 
     BoxLayout:
         id: angcomp_seteo_angulo_text
@@ -510,6 +516,7 @@
         pos_hint: {'center_x': 0.5, 'center_y': 0.19}
         active: False
         group: 'component_sel'
+        allow_no_selection: False
 
     BoxLayout:
         id: angcomp_seteo_c_text
@@ -532,6 +539,7 @@
         pos_hint: {'center_x': 0.5, 'center_y': 0.14}
         active: False
         group: 'component_sel'
+        allow_no_selection: False
 
     BoxLayout:
         id: angcomp_seteo_l_text
