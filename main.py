@@ -1,3 +1,5 @@
+# Imports de kivy
+
 from kivy.uix.floatlayout import FloatLayout
 from kivy.app import App
 from kivy.properties import ObjectProperty, StringProperty
@@ -5,18 +7,25 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.popup import Popup
-from puerto_serie import serial_ports
 from kivy.uix.widget import Widget
 from kivy.properties import NumericProperty, ReferenceListProperty
 from kivy.vector import Vector
 from kivy.clock import Clock
-from kivy.uix.textinput import TextInput
+from kivy.config import Config
+
+# Imports de otras
+
 import visa
 import serial
 import math
 from si_prefix import si_format
-from kivy.config import Config
-from main_popups import ArduinoConnectPopup,VNAConnectPopup,NewStubPopup
+
+# Imports propios
+
+from general_popups import ArduinoConnectPopup,VNAConnectPopup,NewStubPopup, PopupError
+from angcomp_functions import ang_sel_fnc,capa_sel_fnc,inductor_sel_fnc
+
+########################################################################################################################
 
 Config.set('graphics', 'resizable', False)              # Para que no se deforme por resizear
 Config.set('kivy', 'exit_on_escape', '0')               # Para que no se cierre cuando se toca "Esc"
@@ -40,7 +49,6 @@ class Main(FloatLayout):
                                                             # 1: Calibracion rapida
                                                             # 2: Lazo abierto preciso
                                                             # 3: Lazo abierto rapido
-                                                            # 4: Ninguno
 
     def __init__(self):
         super(Main, self).__init__()
@@ -56,14 +64,16 @@ class Main(FloatLayout):
         self.angulo_out=str("ANG= ")                    # String que indica en pantalla lo dicho
         self.z_out = str("COMP: ")                      # String que indica en pantalla lo dicho
         self.ids.stub_sel_id.values = ['Nuevo']         # Deberia leer los stubs existentes y listarlos aca
+        self.stub_sel = "Seleccionar"                   # Es para saber que stub se eligio
 
 ########################################################################################################################
 ### Loop cada 100ms ####################################################################################################
 
     def threadloop(self, dt):
-        self.ModeSel_check()                            # En base al modo elegido, habilita o deshabilita widgets
+        self.modesel_check()                            # En base al modo elegido, habilita o deshabilita widgets
         self.ArduinoTestConnection()                    # Chequea el estado del conexion del arduino
-        self.VNATestConnection()                        # Chequea el estado de conexion del vna
+        if self.mode_state < 2:                         # Solo lo hago para los que necesitan el VNA
+            self.VNATestConnection()                    # Chequea el estado de conexion del vna
         if self.vna_status == 1 and self.start == 1:
             self.vna_lectura()                          # Se ejecuta solo si comenzo y si esta seleccionado el vna
         if self.arduino_status == 1 and self.start == 1:
@@ -73,8 +83,17 @@ class Main(FloatLayout):
 ########################################################################################################################
 ### Chequea el modo elegido y, en base a eso, habilita o deshabilita widgets ###########################################
 
-    def ModeSel_check(self):
+    def modesel_check(self):
         if self.start == 0:                                     # Para que cuando salga del start vuelva esto
+            # Habilito el boton comenzar
+            self.ids.start.disabled = False
+
+            # Habilito el conectar con arduino y la seleccion del stub
+            self.ids.stub_text.disabled = False
+            self.ids.stub_sel_id.disabled = False
+            self.ids.arduino_connect.disabled = False
+            self.ids.port_text.disabled = False
+
             self.ids.operation_text.disabled = False
             self.ids.calibracionprecision_checkbox.disabled = False
             self.ids.calibracionprecision_text.disabled = False
@@ -181,7 +200,7 @@ class Main(FloatLayout):
                 self.ids.angcomp_seteo_inductor.disabled = False
                 self.ids.angcomp_seteo_l_text.disabled = False
 
-            elif self.ids.openlooprapido_checkbox.active:
+            else:                                               # Seria que este activo el ultimo
                 self.mode_state = 3                             # Para indicar que estoy en este modo
 
                 # Deshabilito el Comenzar y Detener
@@ -213,36 +232,51 @@ class Main(FloatLayout):
                 self.ids.angcomp_seteo_inductor.disabled = False
                 self.ids.angcomp_seteo_l_text.disabled = False
 
-            else:
-                self.mode_state = 4                             # Para indicar que estoy en este modo
+        else:                                                           # De lo mas horrible que se haya visto
+            # Deshabilito el boton comenzar
+            self.ids.start.disabled = True
 
-                # Desactivo lo que tenga que ver con el vna
-                self.ids.vna_connect.disabled = True
-                self.ids.calibracion_puerto_text.disabled = True
-                self.ids.calibracion_seteo_puerto1.disabled = True
-                self.ids.calibracion_seteo_puerto1_text.disabled = True
-                self.ids.calibracion_seteo_puerto2.disabled = True
-                self.ids.calibracion_seteo_puerto2_text.disabled = True
+            # Deshabilito el conectar con arduino y la seleccion del stub
+            self.ids.stub_text.disabled = True
+            self.ids.stub_sel_id.disabled = True
+            self.ids.arduino_connect.disabled = True
+            self.ids.port_text.disabled = True
 
-                # Desactivo lo de frecuencia
-                self.ids.freq_text.disabled = True
-                self.ids.freq_input.disabled = True
-                self.ids.freq_text_unidad.disabled = True
-                self.ids.frec_precision.disabled = True
+            # Deshabilito los modos
+            self.ids.operation_text.disabled = True
+            self.ids.calibracionprecision_checkbox.disabled = True
+            self.ids.calibracionprecision_text.disabled = True
+            self.ids.calibracionrapida_checkbox.disabled = True
+            self.ids.calibracionrapida_text.disabled = True
+            self.ids.openloopprecision_checkbox.disabled = True
+            self.ids.openloopprecision_text.disabled = True
+            self.ids.openlooprapido_checkbox.disabled = True
+            self.ids.openlooprapido_text.disabled = True
 
-                # Deshabilito el seteo de componente o angulo
-                self.ids.angcomp_text.disabled = True
-                self.ids.angcomp_input.disabled = True
-                self.ids.angcomp_seteo_angulo.disabled = True
-                self.ids.angcomp_seteo_angulo_text.disabled = True
-                self.ids.angcomp_seteo_capacitor.disabled = True
-                self.ids.angcomp_seteo_c_text.disabled = True
-                self.ids.angcomp_seteo_inductor.disabled = True
-                self.ids.angcomp_seteo_l_text.disabled = True
+            # Desactivo lo que tenga que ver con el vna
+            self.ids.vna_connect.disabled = True
+            self.ids.vna_text.disabled = True
+            self.ids.calibracion_puerto_text.disabled = True
+            self.ids.calibracion_seteo_puerto1.disabled = True
+            self.ids.calibracion_seteo_puerto1_text.disabled = True
+            self.ids.calibracion_seteo_puerto2.disabled = True
+            self.ids.calibracion_seteo_puerto2_text.disabled = True
 
-                # Deshabilito el Comenzar y Detener
-                self.ids.start.disabled = True
-                self.ids.stop.disabled = True
+            # Desactivo lo de frecuencia
+            self.ids.freq_text.disabled = True
+            self.ids.freq_input.disabled = True
+            self.ids.freq_text_unidad.disabled = True
+            self.ids.frec_precision.disabled = True
+
+            # Deshabilito el seteo de componente o angulo
+            self.ids.angcomp_text.disabled = True
+            self.ids.angcomp_input.disabled = True
+            self.ids.angcomp_seteo_angulo.disabled = True
+            self.ids.angcomp_seteo_angulo_text.disabled = True
+            self.ids.angcomp_seteo_capacitor.disabled = True
+            self.ids.angcomp_seteo_c_text.disabled = True
+            self.ids.angcomp_seteo_inductor.disabled = True
+            self.ids.angcomp_seteo_l_text.disabled = True
 
 ########################################################################################################################
 ### Test connections para ambos instrumentos (se hacen en el loop constantemente) ######################################
@@ -282,7 +316,7 @@ class Main(FloatLayout):
                 self.vna_status = 0
 
 ########################################################################################################################
-### Lectura del vna cuando esta corriendo el programa ##################################################################
+### Lectura del vna y arduino cuando esta corriendo el programa ########################################################
 
     def vna_lectura(self):
         try:
@@ -304,23 +338,22 @@ class Main(FloatLayout):
         prom_measure_real = sum(measure_real) / len(measure_real)           # Hago el promedio de ambas partes
         prom_measure_img = sum(measure_img) / len(measure_img)
         div = prom_measure_img / prom_measure_real                          # Hago la div de ambas
-        ang1 = round(math.degrees(math.atan(div)), 2)                       # Calculo el angulo
+        ang_aux = round(math.degrees(math.atan(div)), 2)                    # Calculo el angulo
         if prom_measure_real > 0 and prom_measure_img > 0:                  # Correccion del angulo para tenerlo de
                                                                             #0 a 360 grados
-            ang = ang1
+            ang = ang_aux
         elif prom_measure_real < 0 < prom_measure_img:
-            ang = 180 + ang1
+            ang = 180 + ang_aux
         elif prom_measure_real < 0 and prom_measure_img < 0:
-            ang = 180 + ang1
+            ang = 180 + ang_aux
         else:
-            ang = 360 + ang1
+            ang = 360 + ang_aux
 
         mod = round(math.sqrt(math.pow(prom_measure_real, 2) + math.pow(prom_measure_img, 2)), 2)   # Calculo modulo
-        self.angulo_out = str("ANG= %s" % round(ang))                       # Lo que va a imprimir con el angulo
+        self.angulo_out = str("ANG= %s" % round(ang,2))                     # Lo que va a imprimir con el angulo
         self.modulo_out = str("MOD= %s" % mod)                              # Lo que va a imprimir con el modulo
-        #        self.angulo_out = str("Re: %s" % prom_mongo_real)
-        #        self.modulo_out = str("Im: %s" % prom_mongo_img)
-        self.move_point(round(prom_measure_real * 120, 0), round(prom_measure_img * 120, 0))    # Mueve el punto
+        #        self.angulo_out = str("Re: %s" % prom_measure_real)
+        #        self.modulo_out = str("Im: %s" % prom_measure_img)
 
         #        if (round(ang)/float(self.ang_sel)) > 1:
         #            s = serial.Serial(self.arduino_conectado)
@@ -330,31 +363,32 @@ class Main(FloatLayout):
         s_complex = complex(prom_measure_real, prom_measure_img)            # Paso la medicion a compleja
         z_aux = (1 + s_complex) / (1 - s_complex) * 50                      # Calculo la impedancia
         if prom_measure_img < 0:                                            # Imprime la L o C en base a la freq
-            z_posta = -1 / (z_aux.imag * 2 * 3.14159 * pow(10, 9))
+            z_posta = -1 / (z_aux.imag * 2 * math.pi * pow(10, 9))
             self.z_out = str("COMP: C = %sF" % si_format(z_posta, precision=2))
         else:
-            z_posta = z_aux.imag / (2 * 3.14159 * pow(10, 9))
+            z_posta = z_aux.imag / (2 * math.pi * pow(10, 9))
             self.z_out = str("COMP: L = %sH" % si_format(z_posta, precision=2))
+
+        self.move_point(round(prom_measure_real * 122, 0), round(prom_measure_img * 122, 0))        # Mueve el punto
 
 ########################################################################################################################
 ### Lectura del arduino cuando esta corriendo el programa ##############################################################
 
     def arduino_lectura(self):
-        pass
+        self.ArduinoTestConnection()                    # Chequea el estado del conexion del arduino
+        self.VNATestConnection()                        # Chequea el estado de conexion del vna
+
 
 ########################################################################################################################
 ### Error en caso de que estaba corriendo el programa y se desconecto algun equipo #####################################
 
+    # ESTO SEGURO CAMBIA!!!!!!!!!!!!! Hay muchas mas condiciones para ver si sigue o si no.
     def start_error(self, arduino, vna):
-        content = BoxLayout(orientation='vertical')
-        popup = Popup(title='Error', content=content, size_hint=(None, None), size=(200, 200), auto_dismiss=False)
         if arduino == 1:
-            content.add_widget(Label(text='Arduino desconectado'))
-        elif vna == 1:
-            content.add_widget(Label(text='VNA desconectado'))
-        content.add_widget(Button(text='Cerrar', on_press=popup.dismiss))
-        popup.content = content
-        popup.open()
+            txt = 'Arduino desconectado'
+        else:                               # O sea, que haya error en el vna
+            txt = 'Arduino desconectado'
+        PopupError(txt)
         self.start = 0
 
 ########################################################################################################################
@@ -411,54 +445,43 @@ class Main(FloatLayout):
 ### Funcion que se llama al elegir un stub #############################################################################
 
     def on_stub_selected(self):
-        if self.ids.stub_sel_id.text == "Nuevo":
+        if self.ids.stub_sel_id.text == "Nuevo":                    # Si quiero agregar un nuevo stub, popup para eso
             NewStubPopup(self.stub_new_popup_cb,self.mode_state)
-
-########################################################################################################################
-### Seleccion del angulo (el recuadro) #################################################################################
-
-    def ang_sel_fnc(self):
-        a = self.ids.ang_input_text.text.lstrip('-').replace('.','',1)      # Le saco al numero el signo y la coma
-        b = self.ids.ang_input_text.text.lstrip('-')                        # A este solo le saco el signo
-        if a.isdigit():                                                     # Me fijo si el numero pelado corresponde
-                                                                            #a un digito valido
-            c = float(b)                                                    # De ser asi lo guardo en c
         else:
-            c = 1000
-        if not((a.isdigit()) and (c <= 360)):                               # Si no es angulo valido, tira error (tiene
-                                                                            #que ser entre 0 y 360)
-            content = BoxLayout(orientation='vertical')
-            popup = Popup(title='Error',content=content,size_hint=(None,None),size=(200,200),auto_dismiss=False)
-            content.add_widget(Label(text='Angulo no valido'))
-            content.add_widget(Button(text='Cerrar',on_press=popup.dismiss))
-            popup.content=content
-            popup.open()
-
-########################################################################################################################
-### Funcion correspondiente al boton "Detener# #########################################################################
-
-    def stop_fnc(self):
-        self.start = 0
+            self.stub_sel = self.ids.stub_sel_id.text               # Esto se ejecuta luego de tocar "Nuevo" tambien
+            print(self.stub_sel)
 
 ########################################################################################################################
 ### Funcion correspondiente al boton "Comenzar" ########################################################################
 
-    def start_fnc(self):                                                    # Se hace lo mismo que con el ok de angsel
-        a = self.ids.ang_input_text.text.lstrip('-').replace('.','',1)
-        b = self.ids.ang_input_text.text.lstrip('-')
-        if a.isdigit():
-            c = float(b)
-        else:
-            c = 1000
-        if not((a.isdigit()) and (c <= 360)):                               #Para ver si es num o no
-            content = BoxLayout(orientation='vertical')
-            popup = Popup(title='Error',content=content,size_hint=(None,None),size=(200,200),auto_dismiss=False)
-            content.add_widget(Label(text='Angulo no valido'))
-            content.add_widget(Button(text='Cerrar',on_press=popup.dismiss))
-            popup.content=content
-            popup.open()
-            return
-        self.ang_sel = self.ids.ang_input_text.text                         # Carga el valor del angulo
+    def start_fnc(self):
+        start_switch = {0: self.mode0_start_fnc,  # Una especie de switch/case.
+                        1: self.mode1_start_fnc,
+                        2: self.mode2_start_fnc,
+                        3: self.mode3_start_fnc
+                        }
+
+        self.start = 1
+        start_switch[self.mode_state]()                     # Elijo que ejecutar en base al estado de mode
+
+    def start_fnc_old(self):                                # Se deja para ver como era
+#        a = self.ids.angcomp_input_text.text.lstrip('-').replace('.', '', 1)  # Le saco al numero el signo y la coma
+#        b = self.ids.angcomp_input_text.text.lstrip('-')  # A este solo le saco el signo
+#        if a.isdigit():  # Me fijo si el numero pelado corresponde
+#            # a un digito valido
+#            c = float(b)  # De ser asi lo guardo en c
+#        else:
+#            c = 1000
+#        if not ((a.isdigit()) and (c <= 360)):  # Si no es angulo valido, tira error (tiene
+            # que ser entre 0 y 360)
+#            content = BoxLayout(orientation='vertical')
+#            popup = Popup(title='Error', content=content, size_hint=(None, None), size=(200, 200), auto_dismiss=False)
+#            content.add_widget(Label(text='Angulo no valido'))
+#            content.add_widget(Button(text='Cerrar', on_press=popup.dismiss))
+#            popup.content = content
+#            popup.open()
+#            return
+        self.ang_sel = self.ids.angcomp_input_text.text                     # Carga el valor del angulo
         self.start = 1                                                      # Hace que comience el programa
         self.ArduinoTestConnection()                                        # Checks profilacticos
         self.VNATestConnection()
@@ -478,11 +501,112 @@ class Main(FloatLayout):
             inst.write("CALC:MARK1 NORM")
             inst.close()
 
-            s = serial.Serial(self.arduino_conectado)
-            s.write('DU\n')
-            s.write(str(c/360*15000))
-            s.close()
+#            s = serial.Serial(self.arduino_conectado)
+#            s.write('DU\n')
+#            s.write(str(c/360*15000))
+#            s.close()
             #        inst.write(":FREQ:CENT 803000")          #Para el DSA815 (SA)
+########################################################################################################################
+### Funciones correspondientes a cada modo de operacion al tocar el boton "Comenzar" ###################################
+
+    # Funcion correspondiente al modo "Calibracion de precision"
+    def mode0_start_fnc(self):
+        print("modo0")
+
+        # Me fijo si hay stub levantado
+        stub_check = self.stub_check()
+        if stub_check == -1:
+            print(stub_check)
+            self.start = 0
+            return
+
+        freq_check = self.freq_input_check()                        # Si me devuelve -1, quiere decir que estaba mal!
+        if freq_check == -1:
+            print(freq_check)
+            self.start = 0                                          # Habria que ver si sigo usando esto
+            return
+        else:
+            if freq_check < 1:
+                freq_string = "%sE6" % int(freq_check*1000)
+            else:
+                freq_string = "%sE9" % int(freq_check)
+            print(freq_string)
+
+    # Funcion correspondiente al modo "Calibracion rapida"
+    def mode1_start_fnc(self):
+        print("modo1")
+        if self.start == 1:
+            pass
+
+    # Funcion correspondiente al modo "Lazo abierto de precision"
+    def mode2_start_fnc(self):
+        print("modo2")
+        if self.start == 1:
+            pass
+
+    # Funcion correspondiente al modo "Lazo abierto rapido"
+    def mode3_start_fnc(self):
+        # Me fijo si hay stub levantado
+        stub_check = self.stub_check()
+        if stub_check == -1:
+            print(stub_check)
+            self.start = 0
+            return
+
+        # En base al checkbox activado de Angulo/Componente, llama a las distintas funciones para verificar si el valor
+        #ingresado es correcto o si no lo es
+        if self.ids.angcomp_seteo_angulo.active:
+            if ang_sel_fnc(self.ids.angcomp_input_text.text) == -1:
+                self.start = 0
+                return
+        elif self.ids.angcomp_seteo_capacitor.active:
+            if capa_sel_fnc(self.ids.angcomp_input_text.text) == -1:
+                self.start = 0
+                return
+        else:
+            if inductor_sel_fnc(self.ids.angcomp_input_text.text) == -1:
+                self.start = 0
+                return
+
+        print("modo3")
+        if self.start == 1:
+            pass
+
+########################################################################################################################
+### Funciones para corroborar que los parametros esten bien seteados (cada modo llamara a cuales corresponda) ##########
+
+    # Corrobora que el valor ingresado de frecuencia a calibrar sea valido
+    def freq_input_check(self):             # Posibles modos -> 0: Calibracion de precision
+                                            #                -> 3: Lazo abierto rapido
+        error = 0
+        aux = self.ids.freq_input_text.text
+        # Me fijo que este en los valores adecuados y que ademas sea un digito valido
+        if aux.replace('.', '', 1).isdigit():                   # Primero me fijo si esta bien el numero de por si
+            aux_freq = round(float(aux), 3)
+            if not(0.84 <= aux_freq <= 8):                      # Luego si se encuentra dentro del rango
+                error = 1
+        else:
+            error = 1
+
+        if error:
+            txt = 'Frecuencia no valida.\n Valores aceptados entre 0.84GHz y 8GHz'
+            PopupError(txt)
+            return -1
+        return aux_freq
+
+    # Chequea que se haya seleccionado un stub
+    def stub_check(self):                   # Usado por cada uno de los modos
+        if self.ids.stub_sel_id.text == "Seleccionar":              # Habria que ver tambien cuando ingrese uno nuevo
+            txt = 'Seleccione un stub para continuar'
+            PopupError(txt)
+            return -1
+        return 0
+
+########################################################################################################################
+### Funcion correspondiente al boton "Detener" #########################################################################
+
+    def stop_fnc(self):
+        self.start = 0
 
 ########################################################################################################################
 ### Para graficar el punto #############################################################################################
@@ -490,7 +614,7 @@ class Main(FloatLayout):
 
 class PuntoEnGrafico(Widget):
 
-    # El grafico del smith utilizado tiene 240 "pasos" de diametro
+    # El grafico del smith utilizado tiene 244 "pasos" de diametro
     posicion_x = NumericProperty(0)
     posicion_y = NumericProperty(0)
     posicion = ReferenceListProperty(posicion_x, posicion_y)
