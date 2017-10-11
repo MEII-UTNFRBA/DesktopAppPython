@@ -9,7 +9,7 @@ import visa
 
 
 ########################################################################################################################
-### Popups ###############################################################################
+### Popups #############################################################################################################
 
 # Popup para agregar un nuevo stub
 
@@ -68,7 +68,7 @@ class VNAConnectPopup(Popup):
         a = ObjectProperty()
         a = self.rm.list_resources(query=u'USB?*')
 #        a = self.rm.list_resources()
-        print(a)
+#        print(a)
         test = []
         inst_aux = []
         if len(a) > 0:
@@ -180,10 +180,12 @@ class ArduinoConnectPopup(Popup):
         callback(self.puerto_arduino,status)
         self.dismiss()
 
+# Popup que tira mensaje de error
 
-class PopupError(Popup):
+
+class ErrorPopup(Popup):
     def __init__(self, txt):
-        super(PopupError, self).__init__()
+        super(ErrorPopup, self).__init__()
         self.title = 'Error'
         content = BoxLayout(orientation='vertical')
         self.size_hint = (None,None)
@@ -194,3 +196,25 @@ class PopupError(Popup):
         content.add_widget(Button(text='Cerrar', on_press=self.dismiss))
         self.content = content
         self.open()
+
+# Popup que pregunta por la eliminacion o no del stub seleccionado
+
+
+class StubDeletePopup(Popup):
+    def __init__(self, callback):
+        super(StubDeletePopup, self).__init__()
+        self.title = 'ADVERTENCIA'
+        content = BoxLayout(orientation='vertical')
+        self.size_hint = (None,None)
+        self.size = (370,200)
+        self.auto_dismiss = False
+        content.add_widget(Label(text='Si borra el stub seleccionado, perdera todas\nlas mediciones guardadas del mismo. Continuar?',
+                                 halign='center'))
+        content.add_widget(Button(text='Aceptar', on_press=lambda *args: StubDeletePopup.stub_delete(self,callback,1)))
+        content.add_widget(Button(text='Cancelar', on_press=lambda *args: StubDeletePopup.stub_delete(self,callback,0)))
+        self.content = content
+        self.open()
+
+    def stub_delete(self,cb,args):
+        cb(args)
+        self.dismiss()

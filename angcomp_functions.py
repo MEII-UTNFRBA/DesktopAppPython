@@ -1,32 +1,36 @@
-from general_popups import PopupError
+from general_popups import ErrorPopup
 
 ########################################################################################################################
 ### Funciones correspondientes al ang/comp elegido estando en lazo abierto #############################################
 
 # Funcion que verifica el valor ingresado como angulo
-def ang_sel_fnc(aux):
-    error = 0                                   # Usado para avisar de que hubo un error con el angulo ingresado
 
-    # Me fijo si el numero sin coma ni signo corresponde a un digito valido, ademas de que sea menor a 360 en modulo
-    if aux.lstrip('-').replace('.', '', 1).isdigit():
-        aux_ang = float(aux)
-        if float(aux.lstrip('-')) <= 360:
-        # Si es un digito valido, le sumo 360 en caso que sea negativo, sino queda positivo
-            if aux_ang < 0:
-                c = 360 + float(aux)
-            else:
-                c = float(aux)
-            if c == 360:                # Como 360 es lo mismo que 0, lo dejamos en 0
-                c = 0
+
+def ang_sel_fnc(args):
+
+    c = 0                                           # Valor inicial
+    # Me fijo si el numero sin coma ni signo corresponde a un digito valido
+    if args.lstrip('-').replace('.', '', 1).isdigit():
+        aux_ang = float(args)
+        # Esto es para que el angulo insertado quede entre -360 y 360 grados
+        if float(aux_ang) > 360:
+            while aux_ang > 360:
+                aux_ang -= 360
+        elif float(aux_ang) < -360:
+            while aux_ang < -360:
+                aux_ang += 360
+        # Esto es para que el angulo insertado quede entre 0 y 360 grados
+        if aux_ang < 0:
+            c = 360 + aux_ang
         else:
-            error = 1
+            c = aux_ang
+        if c == 360:                # Como 360 es lo mismo que 0, lo dejamos en 0
+            c = 0
+    # En caso que no sea un digito valido
     else:
-        error = 1                   # Si esta en 1, va a avisar el popup, haciendo que no se cargue el valor
-    # Si no es angulo valido, tira error (tiene que ser entre -360 y 360)
-    if error:
-        txt = 'Angulo no valido.\n Tiene que ser entre -360 y 360 grados'
-        PopupError(txt)
-        return -1
+        txt = 'Angulo no valido'
+        ErrorPopup(txt)
+        c = -1                      # Hubo un error
     return c
 
 # Funcion que verifica el valor ingresado como capacidad
@@ -37,7 +41,7 @@ def capa_sel_fnc(aux):
         c = aux                                                 # Hacer algo con esto
     else:
         txt = 'Capacitor no valido'
-        PopupError(txt)
+        ErrorPopup(txt)
         return -1
     return c
 
@@ -49,6 +53,6 @@ def inductor_sel_fnc(aux):
         c = aux                                                 # Hacer algo con esto
     else:
         txt = 'Inductancia no valida'
-        PopupError(txt)
+        ErrorPopup(txt)
         return -1
     return c

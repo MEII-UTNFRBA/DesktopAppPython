@@ -9,6 +9,7 @@
         Ellipse:
             pos: self.pos
             size: self.size
+
 <Main>:
     punto: punto_graf                                   # Para agregar el punto al Smith
 
@@ -218,11 +219,26 @@
         id: stub_sel_id
         size_hint:(None,None)
         size:(200,30)
-        pos_hint: {'center_x': 0.13, 'center_y':0.7}         # Con esto le digo donde va a estar
+        pos_hint: {'center_x': 0.13, 'center_y':0.67}         # Con esto le digo donde va a estar
+        bold: True
         text: "Seleccionar"
         values: root.stubs
         on_text: root.on_stub_selected()
+        on_press: root.on_stub_spinner_clicked()
 
+    Button:
+        id: stub_borrar_id
+        size_hint: (None, None)
+        height: 30
+        width: 200
+        pos_hint: {'center_x': 0.13, 'center_y':0.62}         # Con esto le digo donde va a estar
+        font_size: 14
+        text: "Borrar stub"
+        bold: True
+        text_size: (self.width, self.height)
+        halign: 'center'
+        valign: 'middle'
+        on_press: root.stub_borrar()
 ########################################################################################################################
 ### Seleccion del puerto a utilizar del vna ############################################################################
 
@@ -231,7 +247,7 @@
         size_hint: (None,None)
         size: (200,30)
         opacity: 1
-        pos_hint: {'center_x':0.13, 'center_y':0.6}
+        pos_hint: {'center_x':0.13, 'center_y':0.55}
         Label:
             size: self.size
             text: "Puerto del VNA a utilizar:"
@@ -246,7 +262,7 @@
         size_hint: (None, None)
         size: (20,20)
 #        height: '68dp'
-        pos_hint: {'center_x':0.015, 'center_y':0.54}
+        pos_hint: {'center_x':0.015, 'center_y':0.49}
         active: True
         group: 'puerto_sel'
         allow_no_selection: False
@@ -255,7 +271,7 @@
         id: calibracion_seteo_puerto1_text
         size_hint: (None,None)
         size: (200,30)
-        pos_hint: {'center_x':0.16, 'center_y':0.55}
+        pos_hint: {'center_x':0.16, 'center_y':0.5}
         Label:
             size: self.size
             text: "Puerto 1"
@@ -269,7 +285,7 @@
         size_hint: (None, None)
         size: (20,20)
 #        height: '48dp'
-        pos_hint: {'center_x':0.015, 'center_y':0.49}
+        pos_hint: {'center_x':0.015, 'center_y':0.44}
         active: False
         group: 'puerto_sel'
         allow_no_selection: False
@@ -278,7 +294,7 @@
         id: calibracion_seteo_puerto2_text
         size_hint: (None,None)
         size: (200,30)
-        pos_hint: {'center_x':0.16, 'center_y':0.5}
+        pos_hint: {'center_x':0.16, 'center_y':0.45}
         Label:
             size: self.size
             text: "Puerto 2"

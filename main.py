@@ -2,11 +2,7 @@
 
 from kivy.uix.floatlayout import FloatLayout
 from kivy.app import App
-from kivy.properties import ObjectProperty, StringProperty
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.label import Label
-from kivy.uix.button import Button
-from kivy.uix.popup import Popup
+from kivy.properties import StringProperty
 from kivy.uix.widget import Widget
 from kivy.properties import NumericProperty, ReferenceListProperty
 from kivy.vector import Vector
@@ -22,13 +18,16 @@ from si_prefix import si_format
 
 # Imports propios
 
-from general_popups import ArduinoConnectPopup,VNAConnectPopup,NewStubPopup, PopupError
+from general_popups import ArduinoConnectPopup,VNAConnectPopup,NewStubPopup, ErrorPopup, StubDeletePopup
 from angcomp_functions import ang_sel_fnc,capa_sel_fnc,inductor_sel_fnc
+from database import DataBase
 
 ########################################################################################################################
 
-Config.set('graphics', 'resizable', False)              # Para que no se deforme por resizear
-Config.set('kivy', 'exit_on_escape', '0')               # Para que no se cierre cuando se toca "Esc"
+Config.set('graphics', 'resizable', False)                  # Para que no se deforme por resizear
+Config.set('kivy', 'exit_on_escape', '0')                   # Para que no se cierre cuando se toca "Esc"
+Config.set('input', 'mouse', 'mouse,multitouch_on_demand')  # Para que deje de poner el circulo naranja cuando tocas
+                                                            #boton derecho con el mouse
 
 
 class Main(FloatLayout):
@@ -43,13 +42,13 @@ class Main(FloatLayout):
     z_out = StringProperty()
 #    frec_ol = ["First thing", "Second thing", "Third thing"]
     stub_sel = StringProperty()                         # Va a ser el stub que vaya a elegir
-    stubs = ""                                          # Para listar los stubs guardados
+    stubs = ""
     mode_state = 0                                      # Modo en el que nos encontramos:
                                                             # 0: Calibracion precisa
                                                             # 1: Calibracion rapida
                                                             # 2: Lazo abierto preciso
                                                             # 3: Lazo abierto rapido
-
+    basedatos = DataBase()                              # Correspondiete a la base de datos
     def __init__(self):
         super(Main, self).__init__()
         self.vna_conectado = "Desconectado"             # Indica cual vna esta conectado (o dc si no hay)
@@ -63,17 +62,23 @@ class Main(FloatLayout):
         self.modulo_out=str("MOD= ")                    # String que indica en pantalla lo dicho
         self.angulo_out=str("ANG= ")                    # String que indica en pantalla lo dicho
         self.z_out = str("COMP: ")                      # String que indica en pantalla lo dicho
-        self.ids.stub_sel_id.values = ['Nuevo']         # Deberia leer los stubs existentes y listarlos aca
+
+        # Para la base de datos
+        self.basedatos.conectar()                       # Me conecto
+        self.basedatos.init()                           # Inicializo la base de datos
+
         self.stub_sel = "Seleccionar"                   # Es para saber que stub se eligio
+
 
 ########################################################################################################################
 ### Loop cada 100ms ####################################################################################################
 
     def threadloop(self, dt):
         self.modesel_check()                            # En base al modo elegido, habilita o deshabilita widgets
-        self.ArduinoTestConnection()                    # Chequea el estado del conexion del arduino
+        self.stubsel_check()
+        self.arduino_test_connection()                  # Chequea el estado del conexion del arduino
         if self.mode_state < 2:                         # Solo lo hago para los que necesitan el VNA
-            self.VNATestConnection()                    # Chequea el estado de conexion del vna
+            self.vna_test_connection()                  # Chequea el estado de conexion del vna
         if self.vna_status == 1 and self.start == 1:
             self.vna_lectura()                          # Se ejecuta solo si comenzo y si esta seleccionado el vna
         if self.arduino_status == 1 and self.start == 1:
@@ -278,10 +283,20 @@ class Main(FloatLayout):
             self.ids.angcomp_seteo_inductor.disabled = True
             self.ids.angcomp_seteo_l_text.disabled = True
 
+
+########################################################################################################################
+### Chequea el stub elegido y, en base a eso, habilita o deshabilita widgets ###########################################
+
+    def stubsel_check(self):
+        if self.ids.stub_sel_id.text == "Seleccionar":
+            self.ids.stub_borrar_id.disabled = True
+        else:
+            self.ids.stub_borrar_id.disabled = False
+
 ########################################################################################################################
 ### Test connections para ambos instrumentos (se hacen en el loop constantemente) ######################################
 
-    def ArduinoTestConnection(self):
+    def arduino_test_connection(self):
         if self.arduino_conectado != "Desconectado":        # Si esta desconectado, no hace falta chequear conn
             try:
                 s = serial.Serial(self.arduino_conectado)
@@ -298,7 +313,7 @@ class Main(FloatLayout):
                 self.start = 0
                 self.arduino_status = 0
 
-    def VNATestConnection(self):                            # Mismo principio que el de arduino
+    def vna_test_connection(self):                          # Mismo principio que el de arduino
         if self.vna_conectado != "Desconectado":
             try:
                 inst_test = self.rm.open_resource(self.vna_conectado)
@@ -375,8 +390,8 @@ class Main(FloatLayout):
 ### Lectura del arduino cuando esta corriendo el programa ##############################################################
 
     def arduino_lectura(self):
-        self.ArduinoTestConnection()                    # Chequea el estado del conexion del arduino
-        self.VNATestConnection()                        # Chequea el estado de conexion del vna
+        self.arduino_test_connection()                  # Chequea el estado del conexion del arduino
+        self.vna_test_connection()                      # Chequea el estado de conexion del vna
 
 
 ########################################################################################################################
@@ -388,7 +403,7 @@ class Main(FloatLayout):
             txt = 'Arduino desconectado'
         else:                               # O sea, que haya error en el vna
             txt = 'Arduino desconectado'
-        PopupError(txt)
+        ErrorPopup(txt)
         self.start = 0
 
 ########################################################################################################################
@@ -433,23 +448,36 @@ class Main(FloatLayout):
         if stub_name == "Seleccionar":
             self.ids.stub_sel_id.text = "Seleccionar"
         else:
-            a = []
-            for i in range(0, len(self.ids.stub_sel_id.values)):
-                if i == (len(self.ids.stub_sel_id.values)-1):
-                    a.append(str(stub_name))
-                a.append(self.ids.stub_sel_id.values[i])
-            self.ids.stub_sel_id.values = a
+            self.basedatos.agregar_stub(stub_name)
             self.ids.stub_sel_id.text = stub_name
 
-########################################################################################################################
-### Funcion que se llama al elegir un stub #############################################################################
+    def stub_borrar_cb(self,borrar):
+        if borrar:
+            # Borro el stub
+            self.basedatos.borrar_stub(self.ids.stub_sel_id.text)
+            self.ids.stub_sel_id.text = "Seleccionar"
 
+########################################################################################################################
+### Funciones referidas a la seleccion del stub ########################################################################
+
+    # Funcion que se llama al elegir un stub
     def on_stub_selected(self):
         if self.ids.stub_sel_id.text == "Nuevo":                    # Si quiero agregar un nuevo stub, popup para eso
             NewStubPopup(self.stub_new_popup_cb,self.mode_state)
         else:
             self.stub_sel = self.ids.stub_sel_id.text               # Esto se ejecuta luego de tocar "Nuevo" tambien
             print(self.stub_sel)
+
+    def on_stub_spinner_clicked(self):
+        aux = self.basedatos.listar("stub","nombre")    # Muestro lo que tiene la clase "stub"
+        self.ids.stub_sel_id.values=[]
+        for i in range(0,len(aux)):                     # Cargo los stubs encontrados para que puedan ser mostrados
+            self.ids.stub_sel_id.values.append(aux[i][0])
+        self.ids.stub_sel_id.values.append('Nuevo')     # Agrego el boto Nuevo en caso de que quiera agregase uno nuevo
+
+    # Da opciones para quitar o agregar un nuevo stub
+    def stub_borrar(self):
+        StubDeletePopup(self.stub_borrar_cb)
 
 ########################################################################################################################
 ### Funcion correspondiente al boton "Comenzar" ########################################################################
@@ -483,8 +511,8 @@ class Main(FloatLayout):
 #            return
         self.ang_sel = self.ids.angcomp_input_text.text                     # Carga el valor del angulo
         self.start = 1                                                      # Hace que comience el programa
-        self.ArduinoTestConnection()                                        # Checks profilacticos
-        self.VNATestConnection()
+        self.arduino_test_connection()                                      # Checks profilacticos
+        self.vna_test_connection()
         if self.vna_status == 1 and self.start == 1:                        # Por si las moscas tambien
             inst = self.rm.open_resource(str(self.vna_conectado))
             print(inst.query("*IDN?"))
@@ -579,6 +607,7 @@ class Main(FloatLayout):
     def freq_input_check(self):             # Posibles modos -> 0: Calibracion de precision
                                             #                -> 3: Lazo abierto rapido
         error = 0
+        aux_freq = 0
         aux = self.ids.freq_input_text.text
         # Me fijo que este en los valores adecuados y que ademas sea un digito valido
         if aux.replace('.', '', 1).isdigit():                   # Primero me fijo si esta bien el numero de por si
@@ -590,15 +619,16 @@ class Main(FloatLayout):
 
         if error:
             txt = 'Frecuencia no valida.\n Valores aceptados entre 0.84GHz y 8GHz'
-            PopupError(txt)
+            ErrorPopup(txt)
             return -1
-        return aux_freq
+        else:
+            return aux_freq
 
     # Chequea que se haya seleccionado un stub
     def stub_check(self):                   # Usado por cada uno de los modos
         if self.ids.stub_sel_id.text == "Seleccionar":              # Habria que ver tambien cuando ingrese uno nuevo
             txt = 'Seleccione un stub para continuar'
-            PopupError(txt)
+            ErrorPopup(txt)
             return -1
         return 0
 
@@ -626,6 +656,7 @@ class PuntoEnGrafico(Widget):
 class MainApp(App):
 
     def build(self):
+        self.title = ""
         return Main()
 
 
