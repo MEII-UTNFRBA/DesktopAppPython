@@ -48,14 +48,22 @@ class DataBase:
             cur.execute("""
             CREATE TABLE cal_rapid(
             cal_rapid_id    INTEGER PRIMARY KEY AUTOINCREMENT,
-            cal_1           REAL,
-            cal_2           REAL,
-            cal_3           REAL,
-            cal_4           REAL,
-            cal_5           REAL,
-            cal_6           REAL,
-            cal_7           REAL,
-            cal_8           REAL
+            cal_1r           REAL,
+            cal_1i           REAL,
+            cal_2r           REAL,
+            cal_2i           REAL,
+            cal_3r           REAL,
+            cal_3i           REAL,
+            cal_4r           REAL,
+            cal_4i           REAL,
+            cal_5r           REAL,
+            cal_5i           REAL,
+            cal_6r           REAL,
+            cal_6i           REAL,
+            cal_7r           REAL,
+            cal_7i           REAL,
+            cal_8r           REAL,
+            cal_8i           REAL
             )""")
             cur.execute("""
             CREATE TABLE cal_precision(
@@ -106,7 +114,8 @@ class DataBase:
         cur.execute("SELECT cal_rapid_id FROM stub WHERE nombre='%s'"% stub)
         cal_rapid_id = cur.fetchone()
         if len(cal_rapid_id) == 0:
-            cur.execute("INSERT INTO cal_rapid(cal_1,cal_2,cal_3,cal_4,cal_5,cal_6,cal_7,cal_8) VALUES (?,?,?,?,?,?,?,?)", (calibracion))
+            cur.execute("""INSERT INTO cal_rapid(cal_1r,cal_1i,cal_2r,cal_2i,cal_3r,cal_3i,cal_4r,cal_4i,
+                        cal_5r,cal_5i,cal_6r,cal_6i,cal_7r,cal_7i,cal_8r,cal_8i) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (calibracion))
             self._conn.commit()
             cur.execute("SELECT MAX(cal_rapid_id) FROM cal_rapid")
             cal_rapid_id = cur.fetchone()
@@ -114,14 +123,22 @@ class DataBase:
             self._conn.commit()
         else
             cur.execute("""UPDATE cal_rapid SET 
-                        cal_1=?,
-                        cal_2=?,
-                        cal_3=?,
-                        cal_4=?,
-                        cal_5=?,
-                        cal_6=?,
-                        cal_7=?,
-                        cal_8=? 
+                        cal_1r=?,
+                        cal_1i=?,
+                        cal_2r=?,
+                        cal_2i=?,
+                        cal_3r=?,
+                        cal_3i=?,
+                        cal_4r=?,
+                        cal_4i=?,
+                        cal_5r=?,
+                        cal_5i=?,
+                        cal_6r=?,
+                        cal_6i=?,
+                        cal_7r=?,
+                        cal_7i=?,
+                        cal_8r=?,
+                        cal_8i=? 
                         WHERE cal_rapid_id=?""", (calibracion,cal_rapid_id))
             self._conn.commit()
         cur.close()
