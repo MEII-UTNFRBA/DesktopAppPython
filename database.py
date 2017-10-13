@@ -61,12 +61,14 @@ class DataBase:
             CREATE TABLE cal_precision(
             cal_precision_id    INTEGER PRIMARY KEY AUTOINCREMENT,
             stub_id             INT,
-            frecuencia          REAL
+            frecuencia          REAL,
+            pasos               INT
             )""")
             cur.execute("""
             CREATE TABLE medicion_precision(
             cal_precision_id    INT,
-            valor               REAL,
+            valor_real          REAL,
+            valor_img           REAL,
             valor_id            INT
             )""")
             self._conn.commit()
@@ -75,22 +77,14 @@ class DataBase:
         print(data)
         cur.close()
 
-    def listar(self, args1, args2):
-        '''
-            lista la tabla Artist
-            retorna True si pudo realizar la operacion exitosamente
-        '''
+    def listar(self, tabla, campo):
         if not self._verifica_conexion():
             return False
         error = False
         try:
             cur = self._conn.cursor()
-#            print("SELECT * FROM %s" % tabla)
-            cur.execute("SELECT %s FROM %s" % (args2,args1))
-#            print(cur.fetchall())
+            cur.execute("SELECT %s FROM %s" % (campo,tabla))
             return cur.fetchall()
-            #for id, name in cur.fetchall():
-            #    print "%d\t%s" % (id, name)
         except:
             print sys.exc_info()[1]
             error = True
@@ -98,22 +92,85 @@ class DataBase:
             cur.close()
         return error
 
-    def agregar_stub(self,args):
+    def agregar_stub(self,nombre):
         cur = self._conn.cursor()
-        cur.execute("INSERT INTO stub(nombre) VALUES (?)", (args,))
-        self._conn.commit()
+        cur.execute("SELECT stub_id FROM stub WHERE nombre='%s'"% nombre)
+        stub_id = cur.fetchone()
+        if len(stub_id) == 0:
+            cur.execute("INSERT INTO stub(nombre) VALUES (?)", (nombre,))
+            self._conn.commit()
         cur.close()
 
     def agregar_calibracion_rapida(self,calibracion,stub):
         cur = self._conn.cursor()
-        cur.execute("INSERT INTO cal_rapid(cal_1,cal_2,cal_3,cal_4,cal_5,cal_6,cal_7,cal_8) VALUES (?,?,?,?,?,?,?,?)", (calibracion))
-        self._conn.commit()
-        cur.execute("SELECT MAX(cal_rapid_id) FROM cal_rapid")
-        data = cur.fetchone()
-        print(data)
-        cur.execute("UPDATE stub SET cal_rapid_id=? WHERE nombre = '%s'"%stub, (data))
+        cur.execute("SELECT cal_rapid_id FROM stub WHERE nombre='%s'"% stub)
+        cal_rapid_id = cur.fetchone()
+        if len(cal_rapid_id) == 0:
+            cur.execute("INSERT INTO cal_rapid(cal_1,cal_2,cal_3,cal_4,cal_5,cal_6,cal_7,cal_8) VALUES (?,?,?,?,?,?,?,?)", (calibracion))
+            self._conn.commit()
+            cur.execute("SELECT MAX(cal_rapid_id) FROM cal_rapid")
+            cal_rapid_id = cur.fetchone()
+            cur.execute("UPDATE stub SET cal_rapid_id=? WHERE nombre = '%s'"%stub, (cal_rapid_id))
+            self._conn.commit()
+        else
+            cur.execute("""UPDATE cal_rapid SET 
+                        cal_1=?,
+                        cal_2=?,
+                        cal_3=?,
+                        cal_4=?,
+                        cal_5=?,
+                        cal_6=?,
+                        cal_7=?,
+                        cal_8=? 
+                        WHERE cal_rapid_id=?""", (calibracion,cal_rapid_id))
+            self._conn.commit()
+        cur.close()
+
+    def agregar_calibracion_adv(self, calibracion, stub, frecuencia, pasos):
+        cur = self._conn.cursor()
+        cur.execute("SELECT stub_id FROM stub WHERE nombre = '%s'"% stub)
+        stub_id = cur.fetchone()
+        cur.execute("SELECT cal_precision_id FROM cal_precision WHERE stub_id=? AND frecuencia=?", (stub_id,frecuencia))
+        cal_precision_id = cur.fetchone()
+        if len(cal_precision_id) == 0:
+            cur.execute("INSERT INTO cal_precision(stub_id,frecuencia,pasos) VALUES (?,?,?)", (stub_id,frecuencia,pasos))
+            self._conn.commit()
+            cur.execute("SELECT cal_precision_id FROM cal_precision WHERE stub_id=? AND frecuencia=?", (stub_id,frecuencia))
+            cal_precision_id = cur.fetchone()
+        else
+            cur.execute("UPDATE cal_precision SET frecuencia=?, pasos=? WHERE stub_id=?", (frecuencia,pasos,stub_id))
+            self._conn.commit()
+            cur.execute("DELETE FROM medicion_precision WHERE cal_precision_id=?", (cal_precision_id))
+            self._conn.commit()
+        for i in range(0, len(calibracion))
+            cur.execute("INSERT INTO medicion_precision VALUES ?", (cal_precision_id,calibracion[i],i))
         self._conn.commit()
         cur.close()
+
+    def listar_stub(self):
+        if not self._verifica_conexion():
+            return False
+        error = False
+        try:
+            cur = self._conn.cursor()
+            cur.execute("SELECT nombre FROM stub")
+            return cur.fetchall()
+        except:
+            print sys.exc_info()[1]
+            error = True
+        finally:
+            cur.close()
+        return error
+
+    def listar_frecuencias(self,stub):
+        cur = self._conn.cursor()
+        cur.execute("SELECT cal_rapid_id FROM stub WHERE nombre = '%s'"%stub)
+        data = cur.fetchone()
+        print(data)
+        cur.execute("SELECT frecuencia FROM cal_precision WHERE stub_id=?", data)
+        frecuencias = cur.fetchall()
+        cur.close()
+        return frecuencias
 
     def lectura_calibracion_rapida(self,stub):
         cur = self._conn.cursor()
@@ -124,6 +181,17 @@ class DataBase:
         mediciones = cur.fetchall()
         cur.close()
         return mediciones
+
+    def lectura_calibracion_adv(self, stub, frecuencia):
+        cur = self._conn.cursor()
+        cur.execute("""SELECT cal_precision_id FROM cal_precision WHERE frecuencia=? 
+                    AND stub_id=(SELECT stub_id FROM stub WHERE nombre='%s')"""% stub, (frecuencia,))
+        cal_precision_id = cur.fetchone()
+        cur.execute("SELECT valor_real,valor_img FROM medicion_precision WHERE cal_precision_id=? ORDER BY valor_id", (cal_precision_id))
+        mediciones = cur.fetchall()
+        cur.close()
+        return mediciones
+
 
     def borrar_stub(self,stub):
         cur = self._conn.cursor()
@@ -139,16 +207,6 @@ class DataBase:
         cur.execute("DELETE FROM medicion_precision WHERE cal_precision_id = '%s'" % medid)
         self._conn.commit()
         cur.close()
-
-    def listar_frecuencias(self,stub):
-        cur = self._conn.cursor()
-        cur.execute("SELECT cal_rapid_id FROM stub WHERE nombre = '%s'"%stub)
-        data = cur.fetchone()
-        print(data)
-        cur.execute("SELECT frecuencia FROM cal_precision WHERE stub_id=?", data)
-        mediciones = cur.fetchall()
-        cur.close()
-        return mediciones
 
 
 if __name__ == '__main__':
