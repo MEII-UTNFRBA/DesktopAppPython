@@ -14,6 +14,7 @@ from kivy.config import Config
 import visa
 import serial
 import math
+import string
 from si_prefix import si_format
 
 # Imports propios
@@ -23,6 +24,8 @@ from angcomp_functions import ang_sel_fnc,capa_sel_fnc,inductor_sel_fnc
 from database import DataBase
 
 ########################################################################################################################
+########################################################################################################################
+########################################################################################################################
 
 Config.set('graphics', 'resizable', False)                  # Para que no se deforme por resizear
 Config.set('kivy', 'exit_on_escape', '0')                   # Para que no se cierre cuando se toca "Esc"
@@ -31,6 +34,16 @@ Config.set('input', 'mouse', 'mouse,multitouch_on_demand')  # Para que deje de p
 
 
 class Main(FloatLayout):
+    """
+    Main del programa
+    defs:
+    *   __init__
+    *   threadloop
+    *   modesel_check
+    *   stubsel_check
+    *   arduino_test_connection
+    *   vna_test_connection
+    """
 
     vna_conectado = StringProperty()
     vna_showname = StringProperty()
@@ -42,20 +55,28 @@ class Main(FloatLayout):
     z_out = StringProperty()
 #    frec_ol = ["First thing", "Second thing", "Third thing"]
     stub_sel = StringProperty()                         # Va a ser el stub que vaya a elegir
-    stubs = ""
+
     mode_state = 0                                      # Modo en el que nos encontramos:
-                                                            # 0: Calibracion precisa
-                                                            # 1: Calibracion rapida
-                                                            # 2: Lazo abierto preciso
-                                                            # 3: Lazo abierto rapido
+                                                        #   0: Calibracion precisa
+                                                        #   1: Calibracion rapida
+                                                        #   2: Lazo abierto preciso
+                                                        #   3: Lazo abierto rapido
+
     basedatos = DataBase()                              # Correspondiete a la base de datos
+    freq_precision_sel = 0                              # Frecuencia de precision elegida
+
+    arduino_read = ""                                   # Para la lectura constante del arduino
+
+    measure_real = 0
+    measure_img = 0
+    measure_real_vec = []
+    measure_img_vec = []
+
     def __init__(self):
         super(Main, self).__init__()
         self.vna_conectado = "Desconectado"             # Indica cual vna esta conectado (o dc si no hay)
         self.arduino_conectado = "Desconectado"         # Indica en cual port esta conectado el arduino (o dc si no hay)
         self.vna_showname = "Desconectado"              # El nombre que muestra (asi aparece solo fabr y modelo)
-        self.vna_status = 0                             # Para saber si esta algo conectado o no
-        self.arduino_status = 0                         # Lo mismo pero para arduino
         Clock.schedule_interval(self.threadloop,0.1)    # Me "interrumpe" cada 100 mseg
         self.rm = visa.ResourceManager()                # rm es un "tipo" visa
         self.start = 0                                  # Para los botones "Comenzar" y "Detener"
@@ -69,24 +90,191 @@ class Main(FloatLayout):
 
         self.stub_sel = "Seleccionar"                   # Es para saber que stub se eligio
 
+        # Aca van a estar las funciones de loop que se ejecutaran en base al mode_state
+        self.loop_switch = {0: self.mode0_loop,         # Una especie de switch/case.
+                            1: self.mode1_loop,
+                            2: self.mode2_loop,
+                            3: self.mode3_loop
+                            }
+
+        self.freq_start_sel = ""                        # Frecuencia que voy a usar para cargar
+
+        # Flags para saber en que estado estoy del loop cuando comienza el programa
+        self.mode0_state = 0
+        self.mode1_state = 0
+        self.mode2_state = 0
+        self.mode3_state = 0
+
+        mode1_count = 0                                     # Para contar cuantas mediciones tomo en el modo 1
 
 ########################################################################################################################
 ### Loop cada 100ms ####################################################################################################
+########################################################################################################################
 
     def threadloop(self, dt):
         self.modesel_check()                            # En base al modo elegido, habilita o deshabilita widgets
         self.stubsel_check()
         self.arduino_test_connection()                  # Chequea el estado del conexion del arduino
-        if self.mode_state < 2:                         # Solo lo hago para los que necesitan el VNA
-            self.vna_test_connection()                  # Chequea el estado de conexion del vna
-        if self.vna_status == 1 and self.start == 1:
-            self.vna_lectura()                          # Se ejecuta solo si comenzo y si esta seleccionado el vna
-        if self.arduino_status == 1 and self.start == 1:
-            pass
-#            self.arduino_lectura()
+        self.vna_test_connection()                      # Chequea el estado de conexion del vna
+
+        self.arduino_lectura()
+
+        if self.start == 1:
+            self.loop_switch[self.mode_state]()         # Elijo que ejecutar en base al estado de mode
+
+########################################################################################################################
+### Funciones dependientes del modo para cuando se presiona "Comenzar" #################################################
+########################################################################################################################
+
+### Mode0 ##############################################################################################################
+
+    def mode0_loop(self):
+        if self.vna_conectado == "Desconectado":
+            txt = 'VNA desconectado'
+            ErrorPopup(txt)
+            self.start = 0                              # Para que no siga ejecutandose
+            return
+
+        if self.arduino_conectado == "Desconectado":
+            txt = 'Arduino desconectado'
+            ErrorPopup(txt)
+            self.start = 0                              # Para que no siga ejecutandose
+            return
+
+        if self.start == 0:
+            return
+
+        mode0_switch = { 0: self.mode0_switch0,
+                         1: self.mode0_switch1,
+                         2: self.mode0_switch2,
+                         3: self.mode0_switch3,
+                         4: self.mode0_switch4,
+                         }
+        mode0_switch[self.mode0_state]()
+
+    # Switchs del mode0_loop()
+    def mode0_switch0(self):
+        s = serial.Serial(self.arduino_conectado)
+        s.write('D20000U\n')
+        #            print(s.readline())
+        s.close()
+        self.mode0_state = 1
+
+    def mode0_switch1(self):
+        if self.arduino_read == 'END_DER':
+            s = serial.Serial(self.arduino_conectado)
+            s.write('I20U\n')
+            s.close()
+            self.mode0_state = 2
+
+    def mode0_switch2(self):
+        pass
+
+    def mode0_switch3(self):
+        pass
+
+    def mode0_switch4(self):
+        pass
+
+### Mode1 ##############################################################################################################
+
+    def mode1_loop(self):
+        if self.vna_conectado == "Desconectado":
+            txt = 'VNA desconectado'
+            ErrorPopup(txt)
+            self.start = 0                              # Para que no siga ejecutandose
+            return
+
+        if self.arduino_conectado == "Desconectado":
+            txt = 'Arduino desconectado'
+            ErrorPopup(txt)
+            self.start = 0                              # Para que no siga ejecutandose
+            return
+
+        if self.start == 0:
+            return
+
+        mode1_switch = { 0: self.mode1_switch0,
+                         1: self.mode1_switch1,
+                         2: self.mode1_switch2,
+                         3: self.mode1_switch3,
+                         4: self.mode1_switch4,
+                         }
+        mode1_switch[self.mode1_state]()
+
+    # Switchs del mode1_loop()
+    def mode1_switch0(self):
+        s = serial.Serial(self.arduino_conectado)
+        s.write('D20000U\n')
+        #            print(s.readline())
+        s.close()
+        self.mode1_state = 1
+
+    def mode1_switch1(self):
+        if self.arduino_read == 'END_DER':
+            s = serial.Serial(self.arduino_conectado)
+            s.write('I20U\n')
+            s.close()
+            self.mode1_count = 0
+            self.measure_real_vec = []
+            self.measure_img_vec = []
+            self.mode1_state = 2
+
+    def mode1_switch2(self):
+        try:
+            float(self.arduino_read)
+        except ValueError:
+            return
+
+        if self.vna_lectura() == -1:
+            self.start = 0
+            return
+
+        # HAY QUE VER COMO TE ARROJA LOS DATOS!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        self.measure_real_vec.append(self.measure_real)
+        self.measure_img_vec.append(self.measure_img)
+
+        self.mode1_count += 1
+        if self.mode1_count <= 5:
+            self.mode1_state = 4
+        else:
+            self.mode1_state = 3
+
+    def mode1_switch3(self):
+        s = serial.Serial(self.arduino_conectado)
+        s.write('I10U\n')
+        s.close()
+        self.mode1_state = 2
+
+    def mode1_switch4(self):
+        # Aca cargaria la base de datos
+        pass
+
+### Mode2 ##############################################################################################################
+
+    def mode2_loop(self):
+        if self.arduino_conectado == "Desconectado":
+            txt = 'Arduino desconectado'
+            ErrorPopup(txt)
+            self.start = 0                              # Para que no siga ejecutandose
+
+        if self.start == 0:
+            return
+
+### Mode3 ##############################################################################################################
+
+    def mode3_loop(self):
+        if self.arduino_conectado == "Desconectado":
+            txt = 'Arduino desconectado'
+            ErrorPopup(txt)
+            self.start = 0                              # Para que no siga ejecutandose
+
+        if self.start == 0:
+            return
 
 ########################################################################################################################
 ### Chequea el modo elegido y, en base a eso, habilita o deshabilita widgets ###########################################
+########################################################################################################################
 
     def modesel_check(self):
         if self.start == 0:                                     # Para que cuando salga del start vuelva esto
@@ -283,9 +471,9 @@ class Main(FloatLayout):
             self.ids.angcomp_seteo_inductor.disabled = True
             self.ids.angcomp_seteo_l_text.disabled = True
 
-
 ########################################################################################################################
 ### Chequea el stub elegido y, en base a eso, habilita o deshabilita widgets ###########################################
+########################################################################################################################
 
     def stubsel_check(self):
         if self.ids.stub_sel_id.text == "Seleccionar":
@@ -294,8 +482,44 @@ class Main(FloatLayout):
             self.ids.stub_borrar_id.disabled = False
 
 ########################################################################################################################
-### Test connections para ambos instrumentos (se hacen en el loop constantemente) ######################################
+### Funcion para mover el punto dentro del smith #######################################################################
+########################################################################################################################
 
+    def move_point(self, x, y):                             # Le paso la pos x,y que quiero (Esta referido al centro del
+                                                            #diagrama de smith utilizado)
+        self.punto.posicion_x = x
+        self.punto.posicion_y = y
+        self.punto.move(self.ids.smith_img.parent.center)   # Como bien lo dice, mueve el punto a la pos x,y
+
+########################################################################################################################
+### Funciones para el arduino ##########################################################################################
+########################################################################################################################
+
+    # Funcion que llama al popup de arduino (de conexion)
+    def arduino_popup(self):
+        ArduinoConnectPopup(self.arduino_popup_cb)
+
+    # Callback del popup de conexion de arduino
+    def arduino_popup_cb(self, ar_sel):
+        self.arduino_conectado = ar_sel                 # Sirve tanto como para mostar el nombre como para llamarlo
+
+        # Mueve el stub a alguno de los dos extremos, o sea, los fines de carrera para tener una referencia.
+#        s = serial.Serial(self.arduino_conectado)
+#        s.write('I20000U\n')
+#        print(s.readline())
+#        s.close()
+
+    def arduino_lectura(self):
+        if self.arduino_conectado != "Desconectado":
+            try:
+                s=serial.Serial(self.arduino_conectado)
+                self.arduino_read = s.read(self.arduino_conectado)
+                s.close()
+            except (OSError, serial.SerialException):
+                self.arduino_read = ""
+                return
+
+    # Chequea la conexion del arduino
     def arduino_test_connection(self):
         if self.arduino_conectado != "Desconectado":        # Si esta desconectado, no hace falta chequear conn
             try:
@@ -303,44 +527,103 @@ class Main(FloatLayout):
                 s.close()
             except (OSError, serial.SerialException):       # En caso que no pueda conectarme con el arduino
                 self.arduino_conectado = "Desconectado"
-                if self.start == 1:                         # Si habia comenzado, salta un popup diciendo que se
-                                                            #desconecto el arduino
-                    self.start_error(1,0)                   # arg1: Arduino
-                    self.start = 0
-                self.arduino_status = 0
-        elif self.start == 1:                               # Si esta dc, no tendria ni que estar activo!
-                self.start_error(1,0)                       # arg1: Arduino
-                self.start = 0
-                self.arduino_status = 0
+#                self.start = 0
 
+########################################################################################################################
+### Funciones referidas a la seleccion del stub ########################################################################
+########################################################################################################################
+
+    # Funcion que se llama al elegir un stub, si es "Nuevo", abre un Popup como para agregarlo
+    def on_stub_selected(self):
+        self.ids.frec_precision.text = "Seleccionar"
+        if self.ids.stub_sel_id.text == "Nuevo":                    # Si quiero agregar un nuevo stub, popup para eso
+            NewStubPopup(self.stub_new_popup_cb,self.mode_state)
+        else:
+            self.stub_sel = self.ids.stub_sel_id.text               # Esto se ejecuta luego de tocar "Nuevo" tambien
+#            print(self.stub_sel)
+
+    # Callback que agrega el stub nuevo a la lista
+    def stub_new_popup_cb(self, stub_name):
+        if stub_name != "Seleccionar":
+            self.basedatos.agregar_stub(stub_name)
+        self.ids.stub_sel_id.text = stub_name
+
+    # Cuando elijo algo del spinner del stub...
+    def on_stub_spinner_clicked(self):
+        aux = self.basedatos.listar("stub","nombre")    # Muestro lo que tiene la clase "stub"
+        self.ids.stub_sel_id.values=[]
+        for i in range(0,len(aux)):                     # Cargo los stubs encontrados para que puedan ser mostrados
+            self.ids.stub_sel_id.values.append(aux[i][0])
+        self.ids.stub_sel_id.values.append('Nuevo')     # Agrego el boto Nuevo en caso de que quiera agregase uno nuevo
+
+    # Da opciones para quitar o agregar un nuevo stub
+    def stub_borrar(self):
+        StubDeletePopup(self.stub_borrar_cb)
+
+    # Borrar stub
+    def stub_borrar_cb(self, borrar):
+        if borrar:
+            # Borro el stub
+            self.basedatos.borrar_stub(self.ids.stub_sel_id.text)
+            self.ids.stub_sel_id.text = "Seleccionar"
+
+########################################################################################################################
+### Funciones para el VNA ##############################################################################################
+########################################################################################################################
+
+    # Chequea si el vna se desconecto o si no
     def vna_test_connection(self):                          # Mismo principio que el de arduino
         if self.vna_conectado != "Desconectado":
             try:
                 inst_test = self.rm.open_resource(self.vna_conectado)
+                a = inst_test.query("*IDN?")
                 inst_test.close()
             except visa.VisaIOError:
                 self.vna_conectado = "Desconectado"
                 self.vna_showname = "Desconectado"
-                if self.start == 1:
-                    self.start_error(0,1)                   # arg2: VNA
-                    self.start = 0
-                self.vna_status = 0
-        elif self.start == 1:
-                self.start_error(0,1)                       # arg2: VNA
-                self.start = 0
-                self.vna_status = 0
 
-########################################################################################################################
-### Lectura del vna y arduino cuando esta corriendo el programa ########################################################
+    # Inicializa el VNA cuando comienza con la calibracion
+    def vna_init(self):
+        try:
+            inst = self.rm.open_resource(str(self.vna_conectado))
+    #        print(inst.query("*IDN?"))
+            inst.write("INST:SEL 'NA'")
+            inst.write("CALC:FORM SMIT")
+            inst.write("CALC:PAR:COUN 1")
 
+            # En base a que puerto tenga elegido, seteo S11 o S22
+            if self.ids.calibracion_seteo_puerto1.active:
+                inst.write("CALC:PAR1:DEF S11")
+            else:
+                inst.write("CALC:PAR1:DEF S22")
+            ##############################################################
+            inst.write("CALC:MARK1 NORM")
+            inst.close()
+        except visa.VisaIOError:                                            # Si no se puede hacer, es que se dc o algo
+            return -1
+        return 0
+
+    # Para que se centre en alguna frecuencia especifica
+    def vna_setfreq(self,frec_inicial,frec_final,frec_sweep):
+        try:
+            inst = self.rm.open_resource(str(self.vna_conectado))
+            inst.write(str("FREQ:STAR %s", frec_inicial))
+            inst.write(str("FREQ:STOP %s", frec_final))
+            if frec_sweep != 0:
+                inst.write(str("SWE:POIN %s", frec_sweep))
+            inst.close()
+        except:
+            return -1
+        return 0
+
+    # Lee el dato del VNA, e imprime modulo, angulo y componente en pantalla
     def vna_lectura(self):
         try:
             inst = self.rm.open_resource(self.vna_conectado)
             measure = inst.query_ascii_values("CALC:SEL:DATA:SDAT?")        # Para leer real imag
             inst.close()
         except visa.VisaIOError:                                            # Si no se puede hacer, es que se dc o algo
-            self.vna_status = 0
-            return
+            return -1
 
         measure_real = []
         measure_img = []
@@ -364,16 +647,15 @@ class Main(FloatLayout):
         else:
             ang = 360 + ang_aux
 
-        mod = round(math.sqrt(math.pow(prom_measure_real, 2) + math.pow(prom_measure_img, 2)), 2)   # Calculo modulo
-        self.angulo_out = str("ANG= %s" % round(ang,2))                     # Lo que va a imprimir con el angulo
-        self.modulo_out = str("MOD= %s" % mod)                              # Lo que va a imprimir con el modulo
-        #        self.angulo_out = str("Re: %s" % prom_measure_real)
-        #        self.modulo_out = str("Im: %s" % prom_measure_img)
+        # Guardo parte real e imaginaria en variables propias de Main para usarlas luego
+        self.measure_real = prom_measure_real
+        self.measure_img = prom_measure_img
 
-        #        if (round(ang)/float(self.ang_sel)) > 1:
-        #            s = serial.Serial(self.arduino_conectado)
-        #            s.write('S')
-        #            s.close()
+        # Esto es mas que nada para mostrar en tiempo real como cambian los valores medidos
+        mod = round(math.sqrt(math.pow(prom_measure_real, 2) + math.pow(prom_measure_img, 2)), 2)
+        ang = round(ang,2)
+        self.angulo_out = str("ANG= %s" % ang)                      # Lo que va a imprimir con el angulo
+        self.modulo_out = str("MOD= %s" % mod)                      # Lo que va a imprimir con el modulo
 
         s_complex = complex(prom_measure_real, prom_measure_img)            # Paso la medicion a compleja
         z_aux = (1 + s_complex) / (1 - s_complex) * 50                      # Calculo la impedancia
@@ -385,195 +667,137 @@ class Main(FloatLayout):
             self.z_out = str("COMP: L = %sH" % si_format(z_posta, precision=2))
 
         self.move_point(round(prom_measure_real * 122, 0), round(prom_measure_img * 122, 0))        # Mueve el punto
+        return 0
 
-########################################################################################################################
-### Lectura del arduino cuando esta corriendo el programa ##############################################################
-
-    def arduino_lectura(self):
-        self.arduino_test_connection()                  # Chequea el estado del conexion del arduino
-        self.vna_test_connection()                      # Chequea el estado de conexion del vna
-
-
-########################################################################################################################
-### Error en caso de que estaba corriendo el programa y se desconecto algun equipo #####################################
-
-    # ESTO SEGURO CAMBIA!!!!!!!!!!!!! Hay muchas mas condiciones para ver si sigue o si no.
-    def start_error(self, arduino, vna):
-        if arduino == 1:
-            txt = 'Arduino desconectado'
-        else:                               # O sea, que haya error en el vna
-            txt = 'Arduino desconectado'
-        ErrorPopup(txt)
-        self.start = 0
-
-########################################################################################################################
-### Funcion para mover el punto dentro del smith #######################################################################
-
-    def move_point(self, x, y):                             # Le paso la pos x,y que quiero (Esta referido al centro del
-                                                            #diagrama de smith utilizado)
-        self.punto.posicion_x = x
-        self.punto.posicion_y = y
-        self.punto.move(self.ids.smith_img.parent.center)   # Como bien lo dice, mueve el punto a la pos x,y
-
-########################################################################################################################
-### Llaman a los popups para conectarse tanto con arduino como con el vna ##############################################
-
+    # Popup del VNA
     def vna_popup(self):
         VNAConnectPopup(self.vna_popup_cb)
 
-    def arduino_popup(self):
-        ArduinoConnectPopup(self.arduino_popup_cb)
-
-
-########################################################################################################################
-### Callbacks de las funciones de popup ################################################################################
-
-    def vna_popup_cb(self, vna_sel, status, showname):
+    # Callback del popup del VNA
+    def vna_popup_cb(self, vna_sel, showname):
         self.vna_showname = showname                    # El nombre que va a mostrar en la pantalla del equipo
         self.vna_conectado = vna_sel                    # Aca esta guardado el comando que se usa para abrir el vna
-        self.vna_status = status                        # Activa el vna
-
-    def arduino_popup_cb(self, ar_sel, status):
-        self.arduino_conectado = ar_sel                 # Sirve tanto como para mostar el nombre como para llamarlo
-        self.arduino_status = status                    # Activa el arduino
-
-        # Mueve el stub a alguno de los dos extremos, o sea, los fines de carrera para tener una referencia.
-        s = serial.Serial(self.arduino_conectado)
-        s.write('I20000U\n')
-        print(s.readline())
-        s.close()
-
-# Agrega el stub nuevo a la lista
-    def stub_new_popup_cb(self, stub_name):
-        if stub_name == "Seleccionar":
-            self.ids.stub_sel_id.text = "Seleccionar"
-        else:
-            self.basedatos.agregar_stub(stub_name)
-            self.ids.stub_sel_id.text = stub_name
-
-    def stub_borrar_cb(self,borrar):
-        if borrar:
-            # Borro el stub
-            self.basedatos.borrar_stub(self.ids.stub_sel_id.text)
-            self.ids.stub_sel_id.text = "Seleccionar"
-
-########################################################################################################################
-### Funciones referidas a la seleccion del stub ########################################################################
-
-    # Funcion que se llama al elegir un stub
-    def on_stub_selected(self):
-        if self.ids.stub_sel_id.text == "Nuevo":                    # Si quiero agregar un nuevo stub, popup para eso
-            NewStubPopup(self.stub_new_popup_cb,self.mode_state)
-        else:
-            self.stub_sel = self.ids.stub_sel_id.text               # Esto se ejecuta luego de tocar "Nuevo" tambien
-            print(self.stub_sel)
-
-    def on_stub_spinner_clicked(self):
-        aux = self.basedatos.listar("stub","nombre")    # Muestro lo que tiene la clase "stub"
-        self.ids.stub_sel_id.values=[]
-        for i in range(0,len(aux)):                     # Cargo los stubs encontrados para que puedan ser mostrados
-            self.ids.stub_sel_id.values.append(aux[i][0])
-        self.ids.stub_sel_id.values.append('Nuevo')     # Agrego el boto Nuevo en caso de que quiera agregase uno nuevo
-
-    # Da opciones para quitar o agregar un nuevo stub
-    def stub_borrar(self):
-        StubDeletePopup(self.stub_borrar_cb)
 
 ########################################################################################################################
 ### Funcion correspondiente al boton "Comenzar" ########################################################################
+########################################################################################################################
 
     def start_fnc(self):
-        start_switch = {0: self.mode0_start_fnc,  # Una especie de switch/case.
+        start_switch = {0: self.mode0_start_fnc,        # Una especie de switch/case.
                         1: self.mode1_start_fnc,
                         2: self.mode2_start_fnc,
                         3: self.mode3_start_fnc
                         }
+        #        self.start = 1
+        start_switch[self.mode_state]()                 # Elijo que ejecutar en base al estado de mode
 
-        self.start = 1
-        start_switch[self.mode_state]()                     # Elijo que ejecutar en base al estado de mode
-
-    def start_fnc_old(self):                                # Se deja para ver como era
-#        a = self.ids.angcomp_input_text.text.lstrip('-').replace('.', '', 1)  # Le saco al numero el signo y la coma
-#        b = self.ids.angcomp_input_text.text.lstrip('-')  # A este solo le saco el signo
-#        if a.isdigit():  # Me fijo si el numero pelado corresponde
-#            # a un digito valido
-#            c = float(b)  # De ser asi lo guardo en c
-#        else:
-#            c = 1000
-#        if not ((a.isdigit()) and (c <= 360)):  # Si no es angulo valido, tira error (tiene
-            # que ser entre 0 y 360)
-#            content = BoxLayout(orientation='vertical')
-#            popup = Popup(title='Error', content=content, size_hint=(None, None), size=(200, 200), auto_dismiss=False)
-#            content.add_widget(Label(text='Angulo no valido'))
-#            content.add_widget(Button(text='Cerrar', on_press=popup.dismiss))
-#            popup.content = content
-#            popup.open()
-#            return
-        self.ang_sel = self.ids.angcomp_input_text.text                     # Carga el valor del angulo
-        self.start = 1                                                      # Hace que comience el programa
-        self.arduino_test_connection()                                      # Checks profilacticos
-        self.vna_test_connection()
-        if self.vna_status == 1 and self.start == 1:                        # Por si las moscas tambien
-            inst = self.rm.open_resource(str(self.vna_conectado))
-            print(inst.query("*IDN?"))
-            inst.write("INST:SEL 'NA'")
-            inst.write("CALC:FORM SMIT")
-            #        inst.write("DISP:MARK:LARG:A:DEF:TRAC1:MEAS S22")
-            inst.write("CALC:PAR:COUN 1")
-
-            # Estos habria que ponerlos para que se puedan ajustar despues
-            inst.write("CALC:PAR1:DEF S22")
-            inst.write("FREQ:STAR 1E9")
-            inst.write("FREQ:STOP 1E9")
-            ##############################################################
-            inst.write("CALC:MARK1 NORM")
-            inst.close()
-
-#            s = serial.Serial(self.arduino_conectado)
-#            s.write('DU\n')
-#            s.write(str(c/360*15000))
-#            s.close()
-            #        inst.write(":FREQ:CENT 803000")          #Para el DSA815 (SA)
 ########################################################################################################################
 ### Funciones correspondientes a cada modo de operacion al tocar el boton "Comenzar" ###################################
+########################################################################################################################
 
     # Funcion correspondiente al modo "Calibracion de precision"
     def mode0_start_fnc(self):
         print("modo0")
 
-        # Me fijo si hay stub levantado
+        if self.vna_conectado == "Desconectado":
+            txt = 'VNA desconectado'
+            ErrorPopup(txt)
+            self.start = 0                              # Para que no siga ejecutandose
+            return
+
+        if self.arduino_conectado == "Desconectado":
+            txt = "Arduino desconectado"
+            ErrorPopup(txt)
+            self.start = 0                              # Para que no siga ejecutandose
+            return
+
+        # Me fijo si hay stub levantado, sino putea
         stub_check = self.stub_check()
         if stub_check == -1:
             print(stub_check)
             self.start = 0
             return
 
+        # Me fijo si la frecuencia elegida es correcta, sino putea
         freq_check = self.freq_input_check()                        # Si me devuelve -1, quiere decir que estaba mal!
         if freq_check == -1:
             print(freq_check)
             self.start = 0                                          # Habria que ver si sigo usando esto
             return
+        if freq_check < 1:
+            self.freq_start_sel = "%sE6" % int(freq_check*1000)
         else:
-            if freq_check < 1:
-                freq_string = "%sE6" % int(freq_check*1000)
-            else:
-                freq_string = "%sE9" % int(freq_check)
-            print(freq_string)
+            self.freq_start_sel = "%sE9" % int(freq_check)
+        print(self.freq_start_sel)
+
+        # Si llego hasta aca, entonces ya estamos en condiciones de arrancar
+        vna_init_check = self.vna_init()                            # Inicializo el vna para medir
+        if vna_init_check == -1:
+            txt = "Se rompio en init"
+            ErrorPopup(txt)
+            self.start = 0
+            return
+
+        # Lo pongo en una frecuencia especifica para medir
+        vna_setfreq = self.vna_setfreq(self.freq_start_sel,self.freq_start_sel,0)
+        if vna_setfreq == -1:
+            txt = "Se rompio en seteando la frecuencia"
+            ErrorPopup(txt)
+            self.start = 0
+            return
+        self.mode0_state = 0                                        # Es como para hacer un switch/case con ifs (asco!)
 
     # Funcion correspondiente al modo "Calibracion rapida"
     def mode1_start_fnc(self):
         print("modo1")
-        if self.start == 1:
-            pass
+
+        if self.vna_conectado == "Desconectado":
+            txt = 'VNA desconectado'
+            ErrorPopup(txt)
+            self.start = 0                              # Para que no siga ejecutandose
+            return
+
+        if self.arduino_conectado == "Desconectado":
+            txt = "Arduino desconectado"
+            ErrorPopup(txt)
+            self.start = 0                              # Para que no siga ejecutandose
+            return
+
+        # Me fijo si hay stub levantado, sino putea
+        stub_check = self.stub_check()
+        if stub_check == -1:
+            print(stub_check)
+            self.start = 0
+            return
+
+#        if self.start == 1:
+#            pass
+        self.mode1_state = 0                                        # Es como para hacer un switch/case con ifs (asco!)
 
     # Funcion correspondiente al modo "Lazo abierto de precision"
     def mode2_start_fnc(self):
         print("modo2")
+
+        if self.arduino_conectado == "Desconectado":
+            txt = "Arduino desconectado"
+            ErrorPopup(txt)
+            self.start = 0                              # Para que no siga ejecutandose
+            return
+
         if self.start == 1:
             pass
 
+        self.mode2_state = 0                                        # Es como para hacer un switch/case con ifs (asco!)
+
     # Funcion correspondiente al modo "Lazo abierto rapido"
     def mode3_start_fnc(self):
+
+        if self.arduino_conectado == "Desconectado":
+            txt = "Arduino desconectado"
+            ErrorPopup(txt)
+            self.start = 0                              # Para que no siga ejecutandose
+            return
+
         # Me fijo si hay stub levantado
         stub_check = self.stub_check()
         if stub_check == -1:
@@ -596,12 +820,15 @@ class Main(FloatLayout):
                 self.start = 0
                 return
 
+        self.mode3_state = 0                                        # Es como para hacer un switch/case con ifs (asco!)
+
         print("modo3")
         if self.start == 1:
             pass
 
 ########################################################################################################################
 ### Funciones para corroborar que los parametros esten bien seteados (cada modo llamara a cuales corresponda) ##########
+########################################################################################################################
 
     # Corrobora que el valor ingresado de frecuencia a calibrar sea valido
     def freq_input_check(self):             # Posibles modos -> 0: Calibracion de precision
@@ -632,14 +859,33 @@ class Main(FloatLayout):
             return -1
         return 0
 
+    def on_frec_spinner_selected(self):
+        aux = self.ids.frec_precision.text
+        if aux != "Seleccionar":
+            self.freq_precision_sel = float(string.replace(aux," GHz",""))      # Para sacar el " GHz"
+#        print(self.freq_precision_sel)
+
+    def on_frec_spinner_clicked(self):
+        self.ids.frec_precision.values = []
+        if self.ids.stub_sel_id.text == "Seleccionar":
+            txt = "Seleccione un stub para\npoder elegir la frecuencia"
+            ErrorPopup(txt)
+        else:
+            aux = self.basedatos.listar_frecuencias(self.ids.stub_sel_id.text)
+            for i in range(0, len(aux)):  # Cargo los stubs encontrados para que puedan ser mostrados
+                self.ids.frec_precision.values.append(str(aux[i][0]) + " GHz")
+#            self.ids.frec_precision.values = self.basedatos.listar_frecuencias(self.ids.stub_sel_id.text)
+
 ########################################################################################################################
 ### Funcion correspondiente al boton "Detener" #########################################################################
+########################################################################################################################
 
     def stop_fnc(self):
         self.start = 0
 
 ########################################################################################################################
 ### Para graficar el punto #############################################################################################
+########################################################################################################################
 
 
 class PuntoEnGrafico(Widget):
@@ -650,7 +896,11 @@ class PuntoEnGrafico(Widget):
     posicion = ReferenceListProperty(posicion_x, posicion_y)
 
     def move(self,args):
-        self.pos = Vector(self.posicion) + args - (3,3)
+        self.pos = Vector(self.posicion) + args - (3,3)         # Correccion muy burda, es en base a la figura
+
+########################################################################################################################
+### MainApp y '__main__' ###############################################################################################
+########################################################################################################################
 
 
 class MainApp(App):

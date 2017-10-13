@@ -101,7 +101,7 @@ class VNAConnectPopup(Popup):
                 texto=''.join(texto)
                 box.add_widget(Button(
                     text=texto,
-                    on_press = lambda *args: VNAConnectPopup.vnasel(self, callback, inst_aux[i],1,texto)))
+                    on_press = lambda *args: VNAConnectPopup.vnasel(self, callback, inst_aux[i],texto)))
                 inst.close()
             self.title = 'Seleccione un equipo'
             self.content=box
@@ -114,16 +114,16 @@ class VNAConnectPopup(Popup):
             self.size_hint=(0.4, 0.4)
         box.add_widget(Button(
             text="Cancelar",
-            on_press=lambda *args: VNAConnectPopup.cancel(self,callback)))
+            on_press=lambda *args: VNAConnectPopup.cancel(self)))
         self.auto_dismiss = False
         self.open()
 
-    def cancel(self,callback):
+    def cancel(self):
         self.dismiss()
 
-    def vnasel(self,callback,vna_sel,status,showname):
+    def vnasel(self,callback,vna_sel,showname):
         self.vna_elegido = vna_sel
-        callback(self.vna_elegido,status,showname)               #Hay que ver si se rompe por esto
+        callback(self.vna_elegido,showname)               #Hay que ver si se rompe por esto
 #        inst = rm.open_resource(str(vna_elegido))      #Hay que ver como hacer para que no se rompa
 #        print(str(self.vna_elegido))
 #        inst = self.rm.open_resource(str(self.vna_elegido))
@@ -156,7 +156,7 @@ class ArduinoConnectPopup(Popup):
             for i in range(0, len(a)):
                 box.add_widget(Button(
                     text=str(a[i]),
-                    on_press=lambda *args: ArduinoConnectPopup.comsel(self, callback, a[i],1)))
+                    on_press=lambda *args: ArduinoConnectPopup.comsel(self, callback, a[i])))
             self.title = 'Seleccione un equipo'
             self.content = box
             self.size_hint = (0.4, 0.4)
@@ -168,16 +168,16 @@ class ArduinoConnectPopup(Popup):
             self.size_hint = (0.4, 0.4)
         box.add_widget(Button(
             text="Cancelar",
-            on_press=lambda *args: ArduinoConnectPopup.cancel(self, callback)))
+            on_press=lambda *args: ArduinoConnectPopup.cancel(self)))
         self.auto_dismiss = False
         self.open()
 
-    def cancel(self,callback):
+    def cancel(self):
         self.dismiss()
 
-    def comsel(self,callback,port_sel,status):
+    def comsel(self,callback,port_sel):
         self.puerto_arduino = port_sel          #Esta en caso de necesitarlo luego
-        callback(self.puerto_arduino,status)
+        callback(self.puerto_arduino)
         self.dismiss()
 
 # Popup que tira mensaje de error

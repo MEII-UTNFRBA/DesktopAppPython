@@ -112,7 +112,7 @@ class DataBase:
             cal_rapid_id = cur.fetchone()
             cur.execute("UPDATE stub SET cal_rapid_id=? WHERE nombre = '%s'"%stub, (cal_rapid_id))
             self._conn.commit()
-        else
+        else:
             cur.execute("""UPDATE cal_rapid SET 
                         cal_1=?,
                         cal_2=?,
@@ -137,12 +137,12 @@ class DataBase:
             self._conn.commit()
             cur.execute("SELECT cal_precision_id FROM cal_precision WHERE stub_id=? AND frecuencia=?", (stub_id,frecuencia))
             cal_precision_id = cur.fetchone()
-        else
+        else:
             cur.execute("UPDATE cal_precision SET frecuencia=?, pasos=? WHERE stub_id=?", (frecuencia,pasos,stub_id))
             self._conn.commit()
             cur.execute("DELETE FROM medicion_precision WHERE cal_precision_id=?", (cal_precision_id))
             self._conn.commit()
-        for i in range(0, len(calibracion))
+        for i in range(0, len(calibracion)):
             cur.execute("INSERT INTO medicion_precision VALUES ?", (cal_precision_id,calibracion[i],i))
         self._conn.commit()
         cur.close()
