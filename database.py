@@ -120,7 +120,7 @@ class DataBase:
         cur.execute("SELECT cal_rapid_id FROM stub WHERE nombre = '%s'"%stub)
         data = cur.fetchone()
         print(data)
-        cur.execute("SELECT * FROM cal_rapid WHERE cal_rapid_id=?", (data))
+        cur.execute("SELECT * FROM cal_rapid WHERE cal_rapid_id=?", data)
         mediciones = cur.fetchall()
         cur.close()
         return mediciones
@@ -139,6 +139,16 @@ class DataBase:
         cur.execute("DELETE FROM medicion_precision WHERE cal_precision_id = '%s'" % medid)
         self._conn.commit()
         cur.close()
+
+    def listar_frecuencias(self,stub):
+        cur = self._conn.cursor()
+        cur.execute("SELECT cal_rapid_id FROM stub WHERE nombre = '%s'"%stub)
+        data = cur.fetchone()
+        print(data)
+        cur.execute("SELECT frecuencia FROM cal_precision WHERE stub_id=?", data)
+        mediciones = cur.fetchall()
+        cur.close()
+        return mediciones
 
 
 if __name__ == '__main__':
