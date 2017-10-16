@@ -6,6 +6,7 @@ class DataBase:
 
     def __init__(self):
         self._conn = None
+        self.aux = ""
 
     def conectar(self):
         '''
@@ -48,6 +49,8 @@ class DataBase:
             cur.execute("""
             CREATE TABLE cal_rapid(
             cal_rapid_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+            cal_0r           REAL,
+            cal_0i           REAL,
             cal_1r           REAL,
             cal_1i           REAL,
             cal_2r           REAL,
@@ -104,7 +107,7 @@ class DataBase:
         cur = self._conn.cursor()
         cur.execute("SELECT stub_id FROM stub WHERE nombre='%s'"% nombre)
         stub_id = cur.fetchone()
-        if len(stub_id) == 0:
+        if stub_id is None:
             cur.execute("INSERT INTO stub(nombre) VALUES (?)", (nombre,))
             self._conn.commit()
         cur.close()
@@ -165,19 +168,10 @@ class DataBase:
         cur.close()
 
     def listar_stub(self):
-        if not self._verifica_conexion():
-            return False
-        error = False
-        try:
-            cur = self._conn.cursor()
-            cur.execute("SELECT nombre FROM stub")
-            return cur.fetchall()
-        except:
-            print sys.exc_info()[1]
-            error = True
-        finally:
-            cur.close()
-        return error
+        cur = self._conn.cursor()
+        stub = cur.execute("SELECT nombre FROM stub")
+        cur.close()
+        return stub
 
     def listar_frecuencias(self,stub):
         cur = self._conn.cursor()
@@ -192,11 +186,14 @@ class DataBase:
     def lectura_calibracion_rapida(self,stub):
         cur = self._conn.cursor()
         cur.execute("SELECT cal_rapid_id FROM stub WHERE nombre = '%s'"%stub)
-        data = cur.fetchone()
-        print(data)
-        cur.execute("SELECT * FROM cal_rapid WHERE cal_rapid_id=?", data)
-        mediciones = cur.fetchall()
-        cur.close()
+        cal_rapid_id = cur.fetchone()
+        if len(cal_rapid_id) == 0:
+            cur.close()
+            mediciones = []
+        else:
+            cur.execute("SELECT * FROM cal_rapid WHERE cal_rapid_id=?", cal_rapid_id)
+            mediciones = cur.fetchall()
+            cur.close()
         return mediciones
 
     def lectura_calibracion_adv(self, stub, frecuencia):
@@ -204,9 +201,13 @@ class DataBase:
         cur.execute("""SELECT cal_precision_id FROM cal_precision WHERE frecuencia=? 
                     AND stub_id=(SELECT stub_id FROM stub WHERE nombre='%s')"""% stub, (frecuencia,))
         cal_precision_id = cur.fetchone()
-        cur.execute("SELECT valor_real,valor_img FROM medicion_precision WHERE cal_precision_id=? ORDER BY valor_id", (cal_precision_id))
-        mediciones = cur.fetchall()
-        cur.close()
+        if len(cal_precision_id) == 0:
+            cur.close()
+            mediciones =[]
+        else:
+            cur.execute("SELECT valor_real,valor_img FROM medicion_precision WHERE cal_precision_id=? ORDER BY valor_id", (cal_precision_id))
+            mediciones = cur.fetchall()
+            cur.close()
         return mediciones
 
 

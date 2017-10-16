@@ -116,6 +116,7 @@ class VNAConnectPopup(Popup):
             text="Cancelar",
             on_press=lambda *args: VNAConnectPopup.cancel(self)))
         self.auto_dismiss = False
+        callback("Desconectado","Desconectado")
         self.open()
 
     def cancel(self):
@@ -170,6 +171,7 @@ class ArduinoConnectPopup(Popup):
             text="Cancelar",
             on_press=lambda *args: ArduinoConnectPopup.cancel(self)))
         self.auto_dismiss = False
+        callback("Desconectado")
         self.open()
 
     def cancel(self):

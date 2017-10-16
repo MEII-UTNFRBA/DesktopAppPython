@@ -91,10 +91,11 @@
         size_hint: (None,None)
         size: (240,30)
         opacity: 1
-        pos_hint: {'center_x':0.27, 'center_y':0.87}
+        pos_hint: {'center_x':0.35, 'center_y':0.88}
         Label:
             size: self.size
             text: root.vna_showname
+            text_size: self.size
             color: 1,1,1,1
             bold: 1
             background_color:
@@ -121,10 +122,11 @@
         size_hint: (None,None)
         size: (240,30)
         opacity: 1
-        pos_hint: {'center_x':0.27, 'center_y':0.82}
+        pos_hint: {'center_x':0.35, 'center_y':0.83}
         Label:
             size: self.size
             text: root.arduino_conectado
+            text_size: self.size
             color: 1,1,1,1
             bold: 1
             background_color:
@@ -443,6 +445,15 @@
             underline: True
             background_color:
 
+    Spinner:
+        id: frec_precision
+        size_hint:(None,None)
+        size:(120,30)
+        pos_hint: {'center_x': 0.44, 'center_y':0.43}         # Con esto le digo donde va a estar
+        text: "Seleccionar"
+        on_text: root.on_frec_spinner_selected()
+        on_press: root.on_frec_spinner_clicked()
+
     BoxLayout:
         id: freq_input
         size_hint: (None,None)
@@ -467,18 +478,6 @@
             color: 1,1,1,1
             bold: True
             background_color:
-
-
-    Spinner:
-        id: frec_precision
-        size_hint:(None,None)
-        size:(120,30)
-        pos_hint: {'center_x': 0.44, 'center_y':0.43}         # Con esto le digo donde va a estar
-        text: "Seleccionar"
-        on_text: root.on_frec_spinner_selected()
-        on_press: root.on_frec_spinner_clicked()
-
-
 
 ########################################################################################################################
 ### Seleccion de componente o angulo en si #############################################################################

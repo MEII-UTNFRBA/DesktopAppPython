@@ -8,7 +8,7 @@ from general_popups import ErrorPopup
 
 def ang_sel_fnc(args):
 
-    c = 0                                           # Valor inicial
+    ang = -1                                                # Valor inicial
     # Me fijo si el numero sin coma ni signo corresponde a un digito valido
     if args.lstrip('-').replace('.', '', 1).isdigit():
         aux_ang = float(args)
@@ -21,38 +21,41 @@ def ang_sel_fnc(args):
                 aux_ang += 360
         # Esto es para que el angulo insertado quede entre 0 y 360 grados
         if aux_ang < 0:
-            c = 360 + aux_ang
+            ang = 360 + aux_ang
         else:
-            c = aux_ang
-        if c == 360:                # Como 360 es lo mismo que 0, lo dejamos en 0
-            c = 0
+            ang = aux_ang
+        if ang == 360:                  # Como 360 es lo mismo que 0, lo dejamos en 0
+            ang = 0
     # En caso que no sea un digito valido
     else:
         txt = 'Angulo no valido'
         ErrorPopup(txt)
-        c = -1                      # Hubo un error
-    return c
+        ang = -1                                            # Hubo un error
+    return ang
+
 
 # Funcion que verifica el valor ingresado como capacidad
 
 
 def capa_sel_fnc(aux):
+    capa = -1
     if aux.replace('.', '', 1).isdigit():
-        c = aux                                                 # Hacer algo con esto
+        capa = aux                                          # Hacer algo con esto
     else:
         txt = 'Capacitor no valido'
         ErrorPopup(txt)
-        return -1
-    return c
+        capa = -1
+    return capa
 
 # Funcion que verifica el valor ingresado como inductancia
 
 
 def inductor_sel_fnc(aux):
+    inductor = -1
     if aux.replace('.', '', 1).isdigit():
-        c = aux                                                 # Hacer algo con esto
+        inductor = aux                                      # Hacer algo con esto
     else:
         txt = 'Inductancia no valida'
         ErrorPopup(txt)
-        return -1
-    return c
+        inductor = -1
+    return inductor
