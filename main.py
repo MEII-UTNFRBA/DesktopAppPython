@@ -15,6 +15,7 @@ import visa
 import serial
 import math
 import string
+import time
 from si_prefix import si_format
 
 # Imports propios
@@ -110,6 +111,7 @@ class Main(FloatLayout):
 
         self.mode1_count = 0                            # Para contar cuantas mediciones tomo en el modo 1
 
+        self.serie_arduino = serial.Serial()
 ########################################################################################################################
 ### Loop cada 100ms ####################################################################################################
 ########################################################################################################################
@@ -156,7 +158,6 @@ class Main(FloatLayout):
     def mode0_switch0(self):
         s = serial.Serial(self.arduino_conectado)
         s.write('D20000U\n')
-        #            print(s.readline())
         s.close()
         self.mode0_state = 1
 
@@ -179,11 +180,11 @@ class Main(FloatLayout):
 ### Mode1 ##############################################################################################################
 
     def mode1_loop(self):
-        if self.vna_conectado == "Desconectado":
-            txt = 'VNA desconectado'
-            ErrorPopup(txt)
-            self.start = 0                              # Para que no siga ejecutandose
-            return
+#        if self.vna_conectado == "Desconectado":
+#            txt = 'VNA desconectado'
+#            ErrorPopup(txt)
+#            self.start = 0                              # Para que no siga ejecutandose
+#            return
 
         if self.arduino_conectado == "Desconectado":
             txt = 'Arduino desconectado'
@@ -198,54 +199,61 @@ class Main(FloatLayout):
                          1: self.mode1_switch1,
                          2: self.mode1_switch2,
                          3: self.mode1_switch3,
-                         4: self.mode1_switch4,
                          }
         mode1_switch[self.mode1_state]()
 
     # Switchs del mode1_loop()
     def mode1_switch0(self):
-        s = serial.Serial(self.arduino_conectado)
-        s.write('I200U\n')
+        self.serie_arduino.port = self.arduino_conectado
+        self.serie_arduino.baudrate = 9600
+        self.serie_arduino.timeout=0.5
+        self.serie_arduino.open()
+        count = 0
+        time.sleep(2)
+        self.serie_arduino.write('I200U\n')
         for i in range(0,100000):
             pass
-        s.write('D20000U\n')
-        #            print(s.readline())
-        s.close()
+        self.serie_arduino.write('D20000U\n')
         self.temp = 0
         self.mode1_state = 1
 
     def mode1_switch1(self):
-        if self.temp == 0:
-            s = serial.Serial(self.arduino_conectado)
-            s.write('STATUS\n')
-            s.close()
-            self.temp = 1
-        else:
-            self.temp = 0
-            s = serial.Serial(self.arduino_conectado)
-            bytesToRead = s.inWaiting()
-            print(bytesToRead)
-            self.arduino_read = s.read(bytesToRead)
-            s.close()
+        print("entro")
+        a = self.serie_arduino.read(999)
+        self.serie_arduino.write("STATUS\n")
+        time.sleep(0.1)
+        print self.serie_arduino.inWaiting()
+        self.arduino_read = self.serie_arduino.read(size=999)
+        print(self.arduino_read)
 
-        if self.arduino_read == 'END_DER\n':
-            s = serial.Serial(self.arduino_conectado)
-            s.write('I20U\n')
+        if self.arduino_read == 'END_DER\r\n':
+            self.serie_arduino.write('I20U\n')
             print("mongo")
-            s.close()
             self.mode1_count = 0
             self.measure_real_vec = []
             self.measure_img_vec = []
+            time.sleep(1)
             self.mode1_state = 2
 
     def mode1_switch2(self):
         try:
-            float(self.arduino_read)
+            self.serie_arduino.write("I10U\n")
         except ValueError:
+            print("error")
+            self.start = 0
+            self.arduino_conectado = "Desconectado"
             return
 
-        if self.vna_lectura() == -1:
+        time.sleep(2)
+
+        # No uso vna_lectura() porque no me sirve para medir como esta configurado para este modo
+        try:
+            inst = self.rm.open_resource(self.vna_conectado)
+            measure = inst.query_ascii_values("CALC:SEL:DATA:SDAT?")        # Para leer real imag
+            inst.close()
+        except visa.VisaIOError:                                            # Si no se puede hacer, es que se dc o algo
             self.start = 0
+            print("Se rompe el vna")
             return
 
         # HAY QUE VER COMO TE ARROJA LOS DATOS!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -253,18 +261,12 @@ class Main(FloatLayout):
         self.measure_img_vec.append(self.measure_img)
 
         self.mode1_count += 1
-        if self.mode1_count <= 5:
-            self.mode1_state = 4
+        if self.mode1_count <= 10:
+            self.mode1_state = 2
         else:
             self.mode1_state = 3
 
     def mode1_switch3(self):
-        s = serial.Serial(self.arduino_conectado)
-        s.write('I10U\n')
-        s.close()
-        self.mode1_state = 2
-
-    def mode1_switch4(self):
         # Aca cargaria la base de datos
         pass
 
