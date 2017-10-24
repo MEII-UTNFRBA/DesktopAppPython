@@ -125,24 +125,62 @@ class DataBase:
         cur = self._conn.cursor()
         cur.execute("SELECT stub_id FROM stub WHERE nombre='%s'"% nombre)
         stub_id = cur.fetchone()
-        if stub_id is None:
+        if stub_id[0] is None:
             cur.execute("INSERT INTO stub(nombre) VALUES (?)", (nombre,))
             self._conn.commit()
         cur.close()
 
     def agregar_calibracion_rapida(self,calibracion,stub):
+        datos = []
         cur = self._conn.cursor()
         cur.execute("SELECT cal_rapid_id FROM stub WHERE nombre='%s'"% stub)
         cal_rapid_id = cur.fetchone()
-        if len(cal_rapid_id) == 0:
-            cur.execute("""INSERT INTO cal_rapid(cal_1r,cal_1i,cal_2r,cal_2i,cal_3r,cal_3i,cal_4r,cal_4i,
-                        cal_5r,cal_5i,cal_6r,cal_6i,cal_7r,cal_7i,cal_8r,cal_8i) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (calibracion))
+        if cal_rapid_id[0] is None:
+            datos.extend(calibracion)
+            cur.execute("""INSERT INTO cal_rapid(cal_085r,
+                        cal_085i,
+                        cal_1r,
+                        cal_1i,
+                        cal_2r,
+                        cal_2i,
+                        cal_3r,
+                        cal_3i,
+                        cal_4r,
+                        cal_4i,
+                        cal_5r,
+                        cal_5i,
+                        cal_6r,
+                        cal_6i,
+                        cal_7r,
+                        cal_7i,
+                        cal_8r,
+                        cal_8i,
+                        cal_00r,
+                        cal_00i,
+                        cal_01r,
+                        cal_01i,
+                        cal_02r,
+                        cal_02i,
+                        cal_03r,
+                        cal_03i,
+                        cal_04r,
+                        cal_04i,
+                        cal_05r,
+                        cal_05i,
+                        cal_06r,
+                        cal_06i,
+                        cal_07r,
+                        cal_07i,
+                        cal_08r,
+                        cal_08i) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (datos))
             self._conn.commit()
             cur.execute("SELECT MAX(cal_rapid_id) FROM cal_rapid")
             cal_rapid_id = cur.fetchone()
             cur.execute("UPDATE stub SET cal_rapid_id=? WHERE nombre = '%s'"%stub, (cal_rapid_id))
             self._conn.commit()
         else:
+            datos.extend(calibracion)
+            datos.append(cal_rapid_id[0])
             cur.execute("""UPDATE cal_rapid SET 
                         cal_085r=?,
                         cal_085i=?,
@@ -180,7 +218,7 @@ class DataBase:
                         cal_07i=?,
                         cal_08r=?,
                         cal_08i=? 
-                        WHERE cal_rapid_id=?""", (calibracion,cal_rapid_id))
+                        WHERE cal_rapid_id=?""", (datos))
             self._conn.commit()
         cur.close()
 
@@ -190,7 +228,7 @@ class DataBase:
         stub_id = cur.fetchone()
         cur.execute("SELECT cal_precision_id FROM cal_precision WHERE stub_id=? AND frecuencia=?", (stub_id,frecuencia))
         cal_precision_id = cur.fetchone()
-        if len(cal_precision_id) == 0:
+        if cal_precision_id[0] is None:
             cur.execute("INSERT INTO cal_precision(stub_id,frecuencia,pasos) VALUES (?,?,?)", (stub_id,frecuencia,pasos))
             self._conn.commit()
             cur.execute("SELECT cal_precision_id FROM cal_precision WHERE stub_id=? AND frecuencia=?", (stub_id,frecuencia))
@@ -225,7 +263,7 @@ class DataBase:
         cur = self._conn.cursor()
         cur.execute("SELECT cal_rapid_id FROM stub WHERE nombre = '%s'"%stub)
         cal_rapid_id = cur.fetchone()
-        if len(cal_rapid_id) == 0:
+        if cal_rapid_id[0] is None:
             cur.close()
             mediciones = []
         else:
@@ -239,7 +277,7 @@ class DataBase:
         cur.execute("""SELECT cal_precision_id FROM cal_precision WHERE frecuencia=? 
                     AND stub_id=(SELECT stub_id FROM stub WHERE nombre='%s')"""% stub, (frecuencia,))
         cal_precision_id = cur.fetchone()
-        if len(cal_precision_id) == 0:
+        if cal_precision_id[0] is None:
             cur.close()
             mediciones =[]
         else:
@@ -267,17 +305,21 @@ class DataBase:
 
 if __name__ == '__main__':
 
+    calibracion = [0.9091683067694444, 0.9142188118199495, 0.9192693168704545, 0.9243198219209596, 0.9293703269714646, 0.9344208320219697, 0.9394713370724748, 0.9445218421229797, 0.9495723471734848, 0.9546228522239899, 0.9596733572744949, 0.964723862325, 0.969774367375505, 0.9748248724260101, 0.9798753774765151, 0.9849258825270202, 0.9899763875775253, 0.9950268926280302, 0.5076302857, -0.40395883, 0.1479687967, -0.902092551, 0.8680801161, 0.0946174308, 0.0575000514, 0.8695636264, -0.7148194136, 0.4295295225, -0.5441409758, -0.6198151377, 0.5232329087, -0.5847795969, 0.5301742837, -0.4013099851, -0.5918462693, 0.2646576207]
+    nombre_stub = "Micho"
+
     clase_sqlite = DataBase()
 
     clase_sqlite.conectar()
     #clase_sqlite.init()
     #clase_sqlite.agregar_stub("MONGO")
-    clase_sqlite.listar("stub","nombre")
-    clase_sqlite.agregar_stub("Tongo")
-    clase_sqlite.listar("stub","nombre")
+#    clase_sqlite.listar("stub","nombre")
+#    clase_sqlite.agregar_stub("Tongo")
+#    clase_sqlite.listar("stub","nombre")
     #clase_sqlite.listar("cal_rapid")
     #mediciones = (1,2,3,5,8,13,21,34)
     #clase_sqlite.agregar_calibracion_rapida(mediciones, str("CHONGO"))
     #clase_sqlite.listar("stub")
-    _cal_5ghz = clase_sqlite.lectura_calibracion_rapida(str("CHONGO"))
-    print(_cal_5ghz[0][5])
+#    _cal_5ghz = clase_sqlite.lectura_calibracion_rapida(str("CHONGO"))
+#    print(_cal_5ghz[0][5])
+    clase_sqlite.agregar_calibracion_rapida(calibracion, nombre_stub)

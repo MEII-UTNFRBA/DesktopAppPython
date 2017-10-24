@@ -70,15 +70,14 @@ class Main(FloatLayout):
 
     measure_real = 0
     measure_img = 0
-    measure_real_vec = []
-    measure_img_vec = []
+    measure_vec = []
 
     def __init__(self):
         super(Main, self).__init__()
         self.vna_conectado = "Desconectado"             # Indica cual vna esta conectado (o dc si no hay)
         self.arduino_conectado = "Desconectado"         # Indica en cual port esta conectado el arduino (o dc si no hay)
         self.vna_showname = "Desconectado"              # El nombre que muestra (asi aparece solo fabr y modelo)
-        Clock.schedule_interval(self.threadloop,0.1)    # Me "interrumpe" cada 100 mseg
+        Clock.schedule_interval(self.threadloop, 0.1)   # Me "interrumpe" cada 100 mseg
         self.rm = visa.ResourceManager()                # rm es un "tipo" visa
         self.start = 0                                  # Para los botones "Comenzar" y "Detener"
         self.modulo_out=str("MOD= ")                    # String que indica en pantalla lo dicho
@@ -109,6 +108,7 @@ class Main(FloatLayout):
         self.mode2_state = 0
         self.mode3_state = 0
 
+        self.serial_count = 0                           # Para esperar a que inicialice el serie
         self.mode1_count = 0                            # Para contar cuantas mediciones tomo en el modo 1
 
         self.serie_arduino = serial.Serial()
@@ -180,16 +180,18 @@ class Main(FloatLayout):
 ### Mode1 ##############################################################################################################
 
     def mode1_loop(self):
-#        if self.vna_conectado == "Desconectado":
-#            txt = 'VNA desconectado'
-#            ErrorPopup(txt)
-#            self.start = 0                              # Para que no siga ejecutandose
-#            return
+        if self.vna_conectado == "Desconectado":
+            txt = 'VNA desconectado'
+            ErrorPopup(txt)
+            self.start = 0                              # Para que no siga ejecutandose
+            self.serie_arduino.close()
+            return
 
         if self.arduino_conectado == "Desconectado":
             txt = 'Arduino desconectado'
             ErrorPopup(txt)
             self.start = 0                              # Para que no siga ejecutandose
+            self.serie_arduino.close()
             return
 
         if self.start == 0:
@@ -204,61 +206,114 @@ class Main(FloatLayout):
 
     # Switchs del mode1_loop()
     def mode1_switch0(self):
-        self.serie_arduino.port = self.arduino_conectado
-        self.serie_arduino.baudrate = 9600
-        self.serie_arduino.timeout=0.5
-        self.serie_arduino.open()
-        count = 0
-        time.sleep(2)
-        self.serie_arduino.write('I200U\n')
-        for i in range(0,100000):
-            pass
-        self.serie_arduino.write('D20000U\n')
-        self.temp = 0
-        self.mode1_state = 1
+        if self.serial_count >= 19:                         # Espero a que se setee bien el serie
+            self.serial_count = 0                           # Para usarlo luego de la misma forma
+            try:
+                self.serie_arduino.write('I200U\n')         # Para asegurar la posicion en la que termine el empalme
+                time.sleep(1)
+                a = self.serie_arduino.read(999)            # Limpio lo que haya por leer al pedo
+                self.serie_arduino.write('D20000U\n')       # Aca lo llevo al fin de carrera de la derecha
+#                time.sleep(0.)
+                self.temp = 0                               # Ni idea de donde salio
+                self.mode1_state = 1                        # Va al siguiente estado del switch
+            except (OSError, serial.SerialException):       # En caso de que haya algun problema escribiendo
+                print"Error switch0 mode1"
+                self.arduino_conectado = "Desconectado"
+                return
+        else:
+            self.serial_count += 1                          # Seria como un timer de 0.1s cada vez que incrementa
 
     def mode1_switch1(self):
         print("entro")
-        a = self.serie_arduino.read(999)
-        self.serie_arduino.write("STATUS\n")
-        time.sleep(0.1)
-        print self.serie_arduino.inWaiting()
-        self.arduino_read = self.serie_arduino.read(size=999)
-        print(self.arduino_read)
+#        if self.serial_count == 1:                          # Para esperar un ratito cuando escribo STATUS (0.1s)
+#        time.sleep(0.2)
+        self.serial_count = 0                           # Por si necesito usarlo luego
+        print self.serie_arduino.inWaiting()            # Imprime si hay algo en la cola del serie
+        if self.serie_arduino.inWaiting() > 0:
+            self.arduino_read = self.serie_arduino.readline()   # Leo lo que haya en la cola
+            print(self.arduino_read)                        # Imprime lo que lee
 
-        if self.arduino_read == 'END_DER\r\n':
-            self.serie_arduino.write('I20U\n')
-            print("mongo")
-            self.mode1_count = 0
-            self.measure_real_vec = []
-            self.measure_img_vec = []
-            time.sleep(1)
-            self.mode1_state = 2
+        if self.arduino_read == 'END_DER\r\n':          # Me fijo lo que recibi
+            self.serie_arduino.write('I20U\n')          # Muevo el stub para no tener en cuenta el error de la pieza
+            print("mongo")                              # "mongo"
+            self.mode1_count = 0                        # Para contar la cantidad de mediciones que voy a tomar
+            self.serial_count = 0                       # Por si necesito cotar de vuelta
+            self.measure_vec = []                       # Vectores para obtener los datos de real e img del vna
+            self.mode1_state = 2                        # Para que pase al siguiente estado del switch
+#        else:
+#            try:
+#                time.sleep(10)
+#                a = self.serie_arduino.read(999)                # Limpio lo que haya por leer al pedo
+#                self.serie_arduino.write("STATUS\n")            # Le pregunto en donde anda el arduino (datos)
+#                self.serial_count = 1
+#            except (OSError, serial.SerialException):
+#                print("error de mode1 switch 1 de END_DER")
+#                self.arduino_conectado = "Desconectado"
+#                return
 
     def mode1_switch2(self):
+
+        time.sleep(0.5)
+
+        # Pongo para medir primero el de 850MHz
+        if self.vna_setfreq("850E6", "850E6", "2") == -1:
+             self.vna_conectado = "Desconectado"
+             self.vna_showname = "Desconectado"
+             return
+
+        measure_850 = []
+        # No uso vna_lectura() porque no me sirve para medir como esta configurado para este modo
+        # Leo los datos del vna para 850MHz
         try:
-            self.serie_arduino.write("I10U\n")
-        except ValueError:
-            print("error")
-            self.start = 0
-            self.arduino_conectado = "Desconectado"
+            inst = self.rm.open_resource(self.vna_conectado)
+            measure_850_aux = inst.query_ascii_values("CALC:SEL:DATA:SDAT?")    # Para leer real imag en 850
+            measure_850_r = (measure_850_aux[0]+measure_850_aux[2])/2
+            measure_850_i = (measure_850_aux[1]+measure_850_aux[3])/2
+            measure_850.append(measure_850_r)
+            measure_850.append(measure_850_i)
+            inst.close()
+        except visa.VisaIOError:                                            # Si no se puede hacer, es que se dc o algo
+            #self.start = 0
+            print("Se rompe el vna")
+            self.vna_showname = "Desconectado"
+            self.vna_conectado = "Desconectado"
             return
 
-        time.sleep(2)
+        # Pongo para medir primero el de 850MHz
+        if self.vna_setfreq("1E9", "8E9", "8") == -1:
+            self.vna_conectado = "Desconectado"
+            self.vna_showname = "Desconectado"
+            return
+        
+        # Guardo los datos real e imaginario en los vectores correspondientes
+        self.measure_vec.extend(measure_850)
 
+        time.sleep(0.5)
         # No uso vna_lectura() porque no me sirve para medir como esta configurado para este modo
+        # Leo los datos del vna para 1 a 8GHz
         try:
             inst = self.rm.open_resource(self.vna_conectado)
             measure = inst.query_ascii_values("CALC:SEL:DATA:SDAT?")        # Para leer real imag
             inst.close()
         except visa.VisaIOError:                                            # Si no se puede hacer, es que se dc o algo
-            self.start = 0
+            #self.start = 0
             print("Se rompe el vna")
+            self.vna_showname = "Desconectado"
+            self.vna_conectado = "Desconectado"
             return
 
-        # HAY QUE VER COMO TE ARROJA LOS DATOS!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        self.measure_real_vec.append(self.measure_real)
-        self.measure_img_vec.append(self.measure_img)
+        # Guardo los datos real e imaginario en los vectores correspondientes
+        self.measure_vec.extend(measure)
+        print(self.measure_vec)
+
+        # Voy moviendo el stub
+        try:
+            self.serie_arduino.write("I10U\n")              # Me muevo 10 pasos
+        except (OSError, serial.SerialException):
+            print("error")
+#            self.start = 0
+            self.arduino_conectado = "Desconectado"
+            return
 
         self.mode1_count += 1
         if self.mode1_count <= 10:
@@ -268,7 +323,22 @@ class Main(FloatLayout):
 
     def mode1_switch3(self):
         # Aca cargaria la base de datos
-        pass
+        measure_delta_vec = [i for i in range(len(self.measure_vec))]
+        measure_delta_prom_vec = [i for i in range(18)]
+        calibracion = []
+#        print(len(self.measure_vec))
+        for i in range(18, (len(self.measure_vec))):
+            measure_delta_vec[i-18] = self.measure_vec[i-18] - self.measure_vec[i]
+        for j in range(0, 18):
+            for i in range(0, len(measure_delta_vec), 18):
+                measure_delta_prom_vec[j] = measure_delta_prom_vec[j] + measure_delta_vec[i]
+            measure_delta_prom_vec[j] = measure_delta_prom_vec[j]/len(measure_delta_vec)
+        calibracion.extend(measure_delta_prom_vec)
+        for i in range(0, 18):
+            calibracion.append(self.measure_vec[i])
+        self.basedatos.agregar_calibracion_rapida(calibracion, self.stub_sel)
+        self.start = 0
+        self.serie_arduino.close()
 
 ### Mode2 ##############################################################################################################
 
@@ -635,8 +705,8 @@ class Main(FloatLayout):
             inst = self.rm.open_resource(str(self.vna_conectado))
             inst.write(str("FREQ:STAR %s" % frec_inicial))
             inst.write(str("FREQ:STOP %s" % frec_final))
-            if frec_sweep != 0:
-                inst.write(str("SWE:POIN %s" % frec_sweep))
+#            if frec_sweep != 0:
+            inst.write(str("SWE:POIN %s" % frec_sweep))
             inst.close()
         except:
             return -1
@@ -717,7 +787,13 @@ class Main(FloatLayout):
         #        self.start = 1
         self.arduino_test_connection()
         self.vna_test_connection()
+        self.serial_count = 0
         start_switch[self.mode_state]()                 # Elijo que ejecutar en base al estado de mode
+        if self.start == 1:
+            self.serie_arduino.port = self.arduino_conectado
+            self.serie_arduino.baudrate = 9600
+            self.serie_arduino.timeout = 0.5
+            self.serie_arduino.open()
 
 ########################################################################################################################
 ### Funciones correspondientes a cada modo de operacion al tocar el boton "Comenzar" ###################################
@@ -770,7 +846,7 @@ class Main(FloatLayout):
             return
 
         # Lo pongo en una frecuencia especifica para medir
-        vna_setfreq = self.vna_setfreq(self.freq_start_sel,self.freq_start_sel,0)
+        vna_setfreq = self.vna_setfreq(self.freq_start_sel,self.freq_start_sel,"1")
         if vna_setfreq == -1:
             txt = "Se rompio seteando la frecuencia"
             ErrorPopup(txt)
