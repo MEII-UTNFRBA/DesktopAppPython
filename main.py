@@ -269,8 +269,21 @@ class Main(FloatLayout):
             measure_850_aux = inst.query_ascii_values("CALC:SEL:DATA:SDAT?")    # Para leer real imag en 850
             measure_850_r = (measure_850_aux[0]+measure_850_aux[2])/2
             measure_850_i = (measure_850_aux[1]+measure_850_aux[3])/2
-            measure_850.append(measure_850_r)
-            measure_850.append(measure_850_i)
+
+            roe = math.sqrt(measure_850_i^2+measure_850_r^2)
+            ang_aux = round(math.degrees(math.atan(measure_850_i/measure_850_r)), 2)  # Calculo el angulo
+            if measure_850_r > 0 and measure_850_i > 0:  # Correccion del angulo para tenerlo de
+                # 0 a 360 grados
+                ang = ang_aux
+            elif measure_850_r < 0 < measure_850_i:
+                ang = 180 + ang_aux
+            elif measure_850_r < 0 and measure_850_i < 0:
+                ang = 180 + ang_aux
+            else:
+                ang = 360 + ang_aux
+
+            measure_850.append(roe)
+            measure_850.append(ang)
             inst.close()
         except visa.VisaIOError:                                            # Si no se puede hacer, es que se dc o algo
             #self.start = 0
@@ -293,7 +306,21 @@ class Main(FloatLayout):
         # Leo los datos del vna para 1 a 8GHz
         try:
             inst = self.rm.open_resource(self.vna_conectado)
-            measure = inst.query_ascii_values("CALC:SEL:DATA:SDAT?")        # Para leer real imag
+            measure_aux = inst.query_ascii_values("CALC:SEL:DATA:SDAT?")        # Para leer real imag
+            for i in range(0,16,2):
+                roe = math.sqrt(measure_aux[i] ^ 2 + measure_aux[i+1] ^ 2)
+                ang_aux = round(math.degrees(math.atan(measure_aux[i+1] / measure_aux[i])), 2)  # Calculo el angulo
+                if measure_aux[i] > 0 and measure_aux[i+1] > 0:  # Correccion del angulo para tenerlo de
+                    # 0 a 360 grados
+                    ang = ang_aux
+                elif measure_aux[i] < 0 < measure_aux[i+1]:
+                    ang = 180 + ang_aux
+                elif measure_aux[i] < 0 and measure_aux[i+1] < 0:
+                    ang = 180 + ang_aux
+                else:
+                    ang = 360 + ang_aux
+                measure.append(roe)
+                measure.append(ang)
             inst.close()
         except visa.VisaIOError:                                            # Si no se puede hacer, es que se dc o algo
             #self.start = 0
