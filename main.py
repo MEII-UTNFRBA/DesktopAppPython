@@ -155,12 +155,13 @@ class Main(FloatLayout):
                          1: self.mode0_switch1,
                          2: self.mode0_switch2,
                          3: self.mode0_switch3,
-                         4: self.mode0_switch4,
+#                         4: self.mode0_switch4,
                          }
         mode0_switch[self.mode0_state]()
 
     # Switchs del mode0_loop()
     def mode0_switch0(self):
+#        print "switch0"
         if self.serial_count >= 19:  # Espero a que se setee bien el serie
             self.serial_count = 0  # Para usarlo luego de la misma forma
             try:
@@ -170,7 +171,8 @@ class Main(FloatLayout):
                 self.serie_arduino.write('D20000U\n')  # Aca lo llevo al fin de carrera de la derecha
                 #                time.sleep(0.)
                 self.temp = 0  # Ni idea de donde salio
-                self.mode0_state = 1  # Va al siguiente estado del switch
+                self.mode0_state = 1  # Va al siguiente estado del
+                print("switch1")
             except (OSError, serial.SerialException):  # En caso de que haya algun problema escribiendo
                 print"Error switch0 mode1"
                 self.arduino_conectado = "Desconectado"
@@ -179,7 +181,6 @@ class Main(FloatLayout):
             self.serial_count += 1  # Seria como un timer de 0.1s cada vez que incrementa
 
     def mode0_switch1(self):
-        print("entro")
         #        if self.serial_count == 1:                          # Para esperar un ratito cuando escribo STATUS (0.1s)
         #        time.sleep(0.2)
         self.serial_count = 0  # Por si necesito usarlo luego
@@ -189,14 +190,17 @@ class Main(FloatLayout):
             print(self.arduino_read)  # Imprime lo que lee
 
         if self.arduino_read == 'END_DER\r\n':  # Me fijo lo que recibi
-            self.serie_arduino.write('I20F\n')  # Muevo el stub para no tener en cuenta el error de la pieza
-            print("mongo")  # "mongo"
+            self.serie_arduino.write('I10F\n')  # Muevo el stub para no tener en cuenta el error de la pieza
+            print self.serie_arduino.readline()
             self.mode0_count = 0  # Para contar la cantidad de mediciones que voy a tomar
             self.serial_count = 0  # Por si necesito cotar de vuelta
             self.measure_vec = []  # Vectores para obtener los datos de real e img del vna
-            self.pasos_porgrado = round(self.long_onda*10000/(2.11*360), 0)
+            self.pasos_porgrado = round(self.long_onda*10000/(2.11*36), 0)
+            print self.long_onda
+            print self.pasos_porgrado
             self.mode0_state = 2  # Para que pase al siguiente estado del switch
-            self.measure_vec = []
+            print "switch2"
+            #self.measure_vec = []
 
 # else:
 #            try:
@@ -210,26 +214,34 @@ class Main(FloatLayout):
 #                return
 
     def mode0_switch2(self):
-        time.sleep(0.2)
-        self.vna_lectura()
-        self.measure_vec.append(self.measure_real)
-        self.measure_vec.append(self.measure_img)
-        try:
-            self.serie_arduino.write("I%sF\n" % int(self.pasos_porgrado))  # Me muevo los pasos necesarios
-        except (OSError, serial.SerialException):
-            print("error")
-            #            self.start = 0
-            self.arduino_conectado = "Desconectado"
-            return
+        if self.serie_arduino.inWaiting() > 0:
+            print self.serie_arduino.readline()
+            time.sleep(0.3)
+            self.measure_vec.extend(self.vna_lectura())
+            #self.measure_vec.append(self.measure_real)
+            #self.measure_vec.append(self.measure_img)
+            try:
+                self.serie_arduino.read(99)
+                self.serie_arduino.write("%s\n" % int(self.pasos_porgrado))  # Me muevo los pasos necesarios
+            except (OSError, serial.SerialException):
+                print("error")
+                #            self.start = 0
+                self.arduino_conectado = "Desconectado"
+                return
 
-        self.mode1_count += 1
-        if self.mode1_count <= 360:
-            self.mode1_state = 2
-        else:
-            self.mode1_state = 3
+            print self.serie_arduino.readline()
+            self.mode0_count += 1
+            if self.mode0_count <= 10:
+                print self.mode0_count
+                self.mode0_state = 2
+            else:
+                self.mode0_state = 3
+                print "switch3"
 
     def mode0_switch3(self):
-        pass
+        print self.measure_vec
+        self.start = 0
+        self.serie_arduino.close()
 
     def mode0_switch4(self):
         pass
@@ -291,7 +303,7 @@ class Main(FloatLayout):
             print(self.arduino_read)                        # Imprime lo que lee
 
         if self.arduino_read == 'END_DER\r\n':          # Me fijo lo que recibi
-            self.serie_arduino.write('I20F\n')          # Muevo el stub para no tener en cuenta el error de la pieza
+            self.serie_arduino.write('I10F\n')          # Muevo el stub para no tener en cuenta el error de la pieza
             print("mongo")                              # "mongo"
             self.mode1_count = 0                        # Para contar la cantidad de mediciones que voy a tomar
             self.serial_count = 0                       # Por si necesito cotar de vuelta
@@ -806,10 +818,12 @@ class Main(FloatLayout):
         try:
             inst = self.rm.open_resource(self.vna_conectado)
             measure = inst.query_ascii_values("CALC:SEL:DATA:SDAT?")        # Para leer real imag
+            print measure
             inst.close()
         except visa.VisaIOError:                                            # Si no se puede hacer, es que se dc o algo
             return -1
 
+        mediciones_vna = []
         measure_real = []
         measure_img = []
         for i in range(0, len(measure)):                                    # Lo separo en real e img
@@ -837,8 +851,10 @@ class Main(FloatLayout):
         self.measure_img = prom_measure_img
 
         # Esto es mas que nada para mostrar en tiempo real como cambian los valores medidos
-        mod = round(math.sqrt(math.pow(prom_measure_real, 2) + math.pow(prom_measure_img, 2)), 2)
+        mod = round(math.sqrt(math.pow(prom_measure_real, 2) + math.pow(prom_measure_img, 2)), 4)
         ang = round(ang, 2)
+        mediciones_vna.append(mod)
+        mediciones_vna.append(ang)
         self.angulo_out = str("ANG= %s" % ang)                      # Lo que va a imprimir con el angulo
         self.modulo_out = str("MOD= %s" % mod)                      # Lo que va a imprimir con el modulo
 
@@ -852,7 +868,8 @@ class Main(FloatLayout):
             self.z_out = str("COMP: L = %sH" % si_format(z_posta, precision=2))
 
         self.move_point(round(prom_measure_real * 122, 0), round(prom_measure_img * 122, 0))        # Mueve el punto
-        return 0
+        print mediciones_vna
+        return mediciones_vna
 
     # Popup del VNA
     def vna_popup(self):
@@ -936,7 +953,7 @@ class Main(FloatLayout):
             return
 
         # Lo pongo en una frecuencia especifica para medir
-        vna_setfreq = self.vna_setfreq(self.freq_start_sel, self.freq_start_sel, "1")
+        vna_setfreq = self.vna_setfreq(self.freq_start_sel, self.freq_start_sel, "10")
         if vna_setfreq == -1:
             txt = "Se rompio seteando la frecuencia"
             ErrorPopup(txt)
@@ -1148,6 +1165,9 @@ class Main(FloatLayout):
 
     def stop_fnc(self):
         self.start = 0
+        self.serie_arduino.write("STOP\n")
+        a = self.serie_arduino.read(999)
+        self.serie_arduino.close()
 
 ########################################################################################################################
 ### Para graficar el punto #############################################################################################
