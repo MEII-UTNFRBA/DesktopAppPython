@@ -31,7 +31,7 @@ def ang_sel_fnc(args):
         txt = 'Angulo no valido'
         ErrorPopup(txt)
         ang = -1                                            # Hubo un error
-    return ang
+    return float(ang)
 
 
 # Funcion que verifica el valor ingresado como capacidad
@@ -45,7 +45,7 @@ def capa_sel_fnc(aux):
         txt = 'Capacitor no valido'
         ErrorPopup(txt)
         capa = -1
-    return capa
+    return float(capa)
 
 # Funcion que verifica el valor ingresado como inductancia
 
@@ -58,4 +58,4 @@ def inductor_sel_fnc(aux):
         txt = 'Inductancia no valida'
         ErrorPopup(txt)
         inductor = -1
-    return inductor
+    return float(inductor)

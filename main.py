@@ -49,8 +49,6 @@ class Main(FloatLayout):
     vna_conectado = StringProperty()
     vna_showname = StringProperty()
     arduino_conectado = StringProperty()
-    ang_sel = 0
-    start = 0
     modulo_out = StringProperty()
     angulo_out = StringProperty()
     z_out = StringProperty()
@@ -83,6 +81,8 @@ class Main(FloatLayout):
         self.modulo_out=str("MOD= ")                    # String que indica en pantalla lo dicho
         self.angulo_out=str("ANG= ")                    # String que indica en pantalla lo dicho
         self.z_out = str("COMP: ")                      # String que indica en pantalla lo dicho
+        self.ang_sel = 0
+        self.start = 0
 
         # Para la base de datos
         self.basedatos.conectar()                       # Me conecto
@@ -99,8 +99,7 @@ class Main(FloatLayout):
 
         self.freq_start_sel = ""                        # Frecuencia que voy a usar para cargar
 
-        self.mode3_auxvalue = 0                         # Valor auxiliar para conocer la parte real e imaginaria medida
-                                                        # necesaria en base a si es angulo, capacitor o inductor
+        self.mode3_componente_elegido = 0
 
         # Flags para saber en que estado estoy del loop cuando comienza el programa
         self.mode0_state = 0
@@ -183,63 +182,76 @@ class Main(FloatLayout):
     def mode0_switch1(self):
         #        if self.serial_count == 1:                          # Para esperar un ratito cuando escribo STATUS (0.1s)
         #        time.sleep(0.2)
-        self.serial_count = 0  # Por si necesito usarlo luego
         print self.serie_arduino.inWaiting()  # Imprime si hay algo en la cola del serie
         if self.serie_arduino.inWaiting() > 0:
             self.arduino_read = self.serie_arduino.readline()  # Leo lo que haya en la cola
             print(self.arduino_read)  # Imprime lo que lee
 
-        if self.arduino_read == 'END_DER\r\n':  # Me fijo lo que recibi
-            self.serie_arduino.write('I10F\n')  # Muevo el stub para no tener en cuenta el error de la pieza
-            print self.serie_arduino.readline()
-            self.mode0_count = 0  # Para contar la cantidad de mediciones que voy a tomar
-            self.serial_count = 0  # Por si necesito cotar de vuelta
-            self.measure_vec = []  # Vectores para obtener los datos de real e img del vna
-            self.pasos_porgrado = round(self.long_onda*10000/(2.11*36), 0)
-            print self.long_onda
-            print self.pasos_porgrado
-            self.mode0_state = 2  # Para que pase al siguiente estado del switch
-            print "switch2"
-            #self.measure_vec = []
-
-# else:
-#            try:
-#                time.sleep(10)
-#                a = self.serie_arduino.read(999)                # Limpio lo que haya por leer al pedo
-#                self.serie_arduino.write("STATUS\n")            # Le pregunto en donde anda el arduino (datos)
-#                self.serial_count = 1
-#            except (OSError, serial.SerialException):
-#                print("error de mode1 switch 1 de END_DER")
-#                self.arduino_conectado = "Desconectado"
-#                return
+            if self.arduino_read == 'END_DER\r\n':  # Me fijo lo que recibi
+                #self.serie_arduino.write('I10F\n')  # Muevo el stub para no tener en cuenta el error de la pieza
+                #print self.serie_arduino.readline()
+                #self.serie_arduino.write('10\n')  # Muevo el stub para no tener en cuenta el error de la pieza
+                #print self.serie_arduino.readline()
+                self.mode0_count = 0  # Para contar la cantidad de mediciones que voy a tomar
+                self.serial_count = 0  # Por si necesito cotar de vuelta
+                self.measure_vec = []  # Vectores para obtener los datos de real e img del vna
+                self.pasos_porgrado = round(self.long_onda*10000/(2.11*36), 0)
+                print self.long_onda
+                print self.pasos_porgrado
+                self.serie_arduino.read(20)
+                self.serie_arduino.write("I%sF\n" % int(self.pasos_porgrado))
+                print self.serie_arduino.readline()
+                self.pasos_realizados = int(self.pasos_porgrado)
+                time.sleep(0.2)
+                self.mode0_state = 2  # Para que pase al siguiente estado del switch
+                self.serial_count = 0  # Por si necesito usarlo luego
+                print "switch2"
 
     def mode0_switch2(self):
-        if self.serie_arduino.inWaiting() > 0:
-            print self.serie_arduino.readline()
-            time.sleep(0.3)
-            self.measure_vec.extend(self.vna_lectura())
-            #self.measure_vec.append(self.measure_real)
-            #self.measure_vec.append(self.measure_img)
-            try:
-                self.serie_arduino.read(99)
-                self.serie_arduino.write("%s\n" % int(self.pasos_porgrado))  # Me muevo los pasos necesarios
-            except (OSError, serial.SerialException):
-                print("error")
-                #            self.start = 0
-                self.arduino_conectado = "Desconectado"
-                return
-
-            print self.serie_arduino.readline()
-            self.mode0_count += 1
-            if self.mode0_count <= 10:
-                print self.mode0_count
-                self.mode0_state = 2
-            else:
-                self.mode0_state = 3
-                print "switch3"
+        if self.serial_count == 0:
+            if self.serie_arduino.inWaiting() > 0:
+                lectura_serial = self.serie_arduino.readline()
+                print lectura_serial
+                lectura_serial = string.replace(lectura_serial, "I", "")
+                lectura_serial = string.replace(lectura_serial, "F\n", "")
+                if int(lectura_serial) < self.pasos_realizados:
+                    self.serie_arduino.write("STOP\n")
+                    print "menos pasos"
+                    pasos_restante = int(self.pasos_porgrado) - int(lectura_serial)
+                    print pasos_restante
+                    self.pasos_realizados = pasos_restante
+                    self.serie_arduino.read(20)
+                    self.serie_arduino.write("%s\n" % pasos_restante)
+                    self.serial_count = 5
+                    lectura_serial = self.serie_arduino.readline()
+                    print lectura_serial
+                else:
+                    self.measure_vec.extend(self.vna_lectura())
+                    self.serial_count = 5
+                    try:
+                        #self.serie_arduino.read(20)
+                        self.serie_arduino.write("%s\n" % int(self.pasos_porgrado))  # Me muevo los pasos necesarios
+                        self.pasos_realizados = self.pasos_porgrado
+                    except (OSError, serial.SerialException):
+                        print("error")
+                        self.arduino_conectado = "Desconectado"
+                        return
+                    lectura_serial = self.serie_arduino.readline()
+                    print lectura_serial
+                    self.mode0_count += 1
+                    if self.mode0_count <= 360:
+                        print self.mode0_count
+                        self.mode0_state = 2
+                    else:
+                        self.mode0_state = 3
+                        print "switch3"
+        else:
+            self.serial_count -= 1
+            print self.serial_count
 
     def mode0_switch3(self):
         print self.measure_vec
+        self.basedatos.agregar_calibracion_adv(self.measure_vec, self.stub_sel, self.freq_input_check(), self.pasos_porgrado)
         self.start = 0
         self.serie_arduino.close()
 
@@ -1056,10 +1068,11 @@ class Main(FloatLayout):
             return
 
         # Guardo las frecuencias de la calibracion rapida
-        frecuencias_calrapida = self.basedatos.lectura_calibracion_rapida(self.ids.stub_sel_id.text)
+        lectura_calrapida = self.basedatos.lectura_calibracion_rapida(self.ids.stub_sel_id.text)
 
         # Si el tamanio del vector es 0, no existe la calibracion rapida para el stub seleccionado
-        if len(frecuencias_calrapida) == 0:
+        print lectura_calrapida
+        if len(lectura_calrapida) == 0:
             txt = "Realizar la calibracion rapida\npara el stub seleccionado"
             ErrorPopup(txt)
             self.start = 0
@@ -1067,51 +1080,88 @@ class Main(FloatLayout):
         # En cambio, si existe la calibracion, extrapolo los pasos necesarios para el angulo determinado
         else:
             # Me fijo si la frecuencia elegida es correcta, sino putea
+            lectura_calrapida = lectura_calrapida[0]
             freq_check = self.freq_input_check()                        # Si me devuelve -1, quiere decir que estaba mal!
             if freq_check == -1:
                 print(freq_check)
                 self.start = 0                                          # Habria que ver si sigo usando esto
                 return
 
-            # Busco entre que valores se encuentra la frecuencia elegida, cosa de determinar a cuanto equivale un paso
+        # HACER ESTOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
 
-            if float(freq_check) < 1:
-                i = 0
-            else:
-                i = 1
-                while i < float(freq_check):
-                    i += 1
+        ROE =[]
+        ROE = lectura_calrapida[19]
+        print(ROE)
 
-            # Promedio entre las dos frecuencias donde se encuentra
-            real_prom = frecuencias_calrapida[2*i] - frecuencias_calrapida[2*i+2]
-            img_prom = frecuencias_calrapida[2*i+1] - frecuencias_calrapida[2*i+3]
+        # Busco entre que valores se encuentra la frecuencia elegida, cosa de determinar a cuanto equivale un paso
 
-            # Calculo cuanto seria en realidad en base a la frecuencia
-            real_interpolado = frecuencias_calrapida[2*i] + real_prom*(freq_check % 1)     # Saco la parte decimal
-            img_interpolado = frecuencias_calrapida[2*i+1] + img_prom*(freq_check % 1)     # Saco la parte decimal
-
-            frec_inf = []
-            frec_sup = []
-            frec_inf.append(frecuencias_calrapida[2*i])
-            frec_inf.append(frecuencias_calrapida[2*i+1])
-            frec_sup.append(frecuencias_calrapida[2*i+2])
-            frec_sup.append(frecuencias_calrapida[2*i+3])
-
-
-        # En base al checkbox activado de Angulo/Componente, llama a las distintas funciones para verificar si el valor
-        # ingresado es correcto o si no lo es
         if self.ids.angcomp_seteo_angulo.active:
-            self.mode3_auxvalue = ang_sel_fnc(self.ids.angcomp_input_text.text)         # Devuelve Re Im necesario o -1
-        elif self.ids.angcomp_seteo_capacitor.active:
-            self.mode3_auxvalue = capa_sel_fnc(self.ids.angcomp_input_text.text)        # Devuelve Re Im necesario o -1
+            self.mode3_componente_elegido = ang_sel_fnc(self.ids.angcomp_input_text.text)
+            if self.mode3_componente_elegido == -1:
+                self.start = 0
+                return
+            else:
+                self.ang_sel = self.mode3_componente_elegido
         else:
-            self.mode3_auxvalue = inductor_sel_fnc(self.ids.angcomp_input_text.text)    # Devuelve Re Im necesario o -1
+            impedancia_aux = []
+            real_smith_aux = []
+            if self.ids.angcomp_seteo_capacitor.active:
+                self.mode3_componente_elegido = capa_sel_fnc(self.ids.angcomp_input_text.text)
+                if self.mode3_componente_elegido == -1:
+                    self.start = 0
+                    return
+                impedancia_aux = 1/(self.mode3_componente_elegido*pow(10, -3)*2*math.pi*self.freq_input_check()*50)
 
-        if self.mode3_auxvalue == -1:  # Si el angulo no es valido, salgo
-            self.mode3_auxvalue = 0
-            self.start = 0
-            return
+            if self.ids.angcomp_seteo_inductor.active:
+                self.mode3_componente_elegido = inductor_sel_fnc(self.ids.angcomp_input_text.text)
+                if self.mode3_componente_elegido == -1:
+                    self.start = 0
+                    return
+                impedancia_aux = self.mode3_componente_elegido*2*math.pi*self.freq_input_check()/50
 
+            print "IMPEDANCIA_AUX"
+            print impedancia_aux
+            a = 1 + pow(impedancia_aux, 2)
+            b = -pow(impedancia_aux, 2)*(1+pow(ROE, 2))
+            c = ((pow(1+pow(ROE, 2), 2)*pow(impedancia_aux, 2))/4-pow(ROE, 2))
+
+            val1 = (-b + math.sqrt(pow(b, 2)-4*a*c))/(2*a)
+            val2 = (-b - math.sqrt(pow(b, 2)-4*a*c))/(2*a)
+
+            print "vals"
+            print val1
+            print val2
+
+            if impedancia_aux < 1:
+                if val1 < val2:
+                    real_smith_aux = val1
+                else:
+                    real_smith_aux = val2
+            else:
+                if val1 < val2:
+                    real_smith_aux = val2
+                else:
+                    real_smith_aux = val1
+
+            print "REAL SMITH"
+            print real_smith_aux
+            print "ROE"
+            print ROE
+            img_smith_aux = math.sqrt(ROE*ROE-real_smith_aux*real_smith_aux)
+            print img_smith_aux
+            ang_aux = math.degrees(math.atan(img_smith_aux/real_smith_aux))  # Calculo el angulo
+            print ang_aux
+            if real_smith_aux > 0 and img_smith_aux > 0:    # Correccion del angulo para tenerlo de
+                                                            # 0 a 360 grados
+                self.ang_sel = ang_aux
+            elif real_smith_aux < 0 < img_smith_aux:
+                self.ang_sel = 180 + ang_aux
+            elif real_smith_aux < 0 and img_smith_aux < 0:
+                self.ang_sel = 180 + ang_aux
+            else:
+                self.ang_sel = 360 + ang_aux
+
+        print self.ang_sel
         self.mode3_state = 0
         self.start = 1
 
