@@ -99,6 +99,9 @@ class Main(FloatLayout):
 
         self.freq_start_sel = ""                        # Frecuencia que voy a usar para cargar
 
+        self.ROE = 0
+        self.ANG_init = 0
+
         self.mode3_componente_elegido = 0
 
         # Flags para saber en que estado estoy del loop cuando comienza el programa
@@ -251,6 +254,7 @@ class Main(FloatLayout):
 
     def mode0_switch3(self):
         print self.measure_vec
+        print self.freq_input_check()
         self.basedatos.agregar_calibracion_adv(self.measure_vec, self.stub_sel, self.freq_input_check(), self.pasos_porgrado)
         self.start = 0
         self.serie_arduino.close()
@@ -275,8 +279,8 @@ class Main(FloatLayout):
             self.serie_arduino.close()
             return
 
-        if self.start == 0:
-            return
+        #if self.start == 0:
+        #    return
 
         mode1_switch = { 0: self.mode1_switch0,
                          1: self.mode1_switch1,
@@ -353,8 +357,8 @@ class Main(FloatLayout):
             measure_850_r = measure_850_aux[0]#+measure_850_aux[2])/2
             measure_850_i = measure_850_aux[1]#+measure_850_aux[3])/2
 
-            roe = math.sqrt(pow(measure_850_i, 2)+pow(measure_850_r, 2))
-            ang_aux = round(math.degrees(math.atan(measure_850_i/measure_850_r)), 2)  # Calculo el angulo
+            ROE = math.sqrt(pow(measure_850_i, 2)+pow(measure_850_r, 2))
+            ang_aux = math.degrees(math.atan(measure_850_i/measure_850_r))  # Calculo el angulo
             if measure_850_r > 0 and measure_850_i > 0:  # Correccion del angulo para tenerlo de
                 # 0 a 360 grados
                 ang = ang_aux
@@ -365,7 +369,7 @@ class Main(FloatLayout):
             else:
                 ang = 360 + ang_aux
 
-            measure_850.append(roe)
+            measure_850.append(ROE)
             measure_850.append(ang)
             inst.close()
         except visa.VisaIOError:                                            # Si no se puede hacer, es que se dc o algo
@@ -392,8 +396,8 @@ class Main(FloatLayout):
             inst = self.rm.open_resource(self.vna_conectado)
             measure_aux = inst.query_ascii_values("CALC:SEL:DATA:SDAT?")        # Para leer real imag
             for i in range(0, 16, 2):
-                roe = math.sqrt(pow(measure_aux[i], 2) + pow(measure_aux[i+1], 2))
-                ang_aux = round(math.degrees(math.atan(measure_aux[i+1] / measure_aux[i])), 2)  # Calculo el angulo
+                ROE = math.sqrt(pow(measure_aux[i], 2) + pow(measure_aux[i+1], 2))
+                ang_aux = math.degrees(math.atan(measure_aux[i+1] / measure_aux[i]))  # Calculo el angulo
                 if measure_aux[i] > 0 and measure_aux[i+1] > 0:  # Correccion del angulo para tenerlo de
                     # 0 a 360 grados
                     ang = ang_aux
@@ -403,7 +407,7 @@ class Main(FloatLayout):
                     ang = 180 + ang_aux
                 else:
                     ang = 360 + ang_aux
-                measure.append(roe)
+                measure.append(ROE)
                 measure.append(ang)
             inst.close()
         except visa.VisaIOError:                                            # Si no se puede hacer, es que se dc o algo
@@ -419,7 +423,7 @@ class Main(FloatLayout):
 
         # Voy moviendo el stub
         try:
-            self.serie_arduino.write("I10F\n")              # Me muevo 10 pasos
+            self.serie_arduino.write("I100F\n")              # Me muevo 10 pasos
         except (OSError, serial.SerialException):
             print("error")
 #            self.start = 0
@@ -427,7 +431,7 @@ class Main(FloatLayout):
             return
 
         self.mode1_count += 1
-        if self.mode1_count <= 10:
+        if self.mode1_count <= 20:
             self.mode1_state = 2
         else:
             self.mode1_state = 3
@@ -438,7 +442,11 @@ class Main(FloatLayout):
         measure_delta_prom_vec = [0]*18
         calibracion = []
         for i in range(18, (len(self.measure_vec))):
-            measure_delta_vec[i-18] = abs(self.measure_vec[i] - self.measure_vec[i-18])
+            aux = abs(self.measure_vec[i] - self.measure_vec[i-18])
+            if aux > 30:
+                measure_delta_vec[i-18] = 360 - aux
+            else:
+                measure_delta_vec[i-18] = aux
 
         for j in range(0, 18):
             for i in range(0, len(measure_delta_vec), 18):
@@ -459,8 +467,27 @@ class Main(FloatLayout):
             ErrorPopup(txt)
             self.start = 0                              # Para que no siga ejecutandose
 
-        if self.start == 0:
-            return
+            mode2_switch = {0: self.mode2_switch0,
+                            1: self.mode2_switch1,
+                            2: self.mode2_switch2,
+                            3: self.mode2_switch3,
+                            }
+            mode2_switch[self.mode2_state]()
+        #if self.start == 0:
+        #    return
+
+    def mode2_swith0(self):
+        return
+    def mode2_swith1(self):
+        return
+    def mode2_swith2(self):
+        return
+    def mode2_swith3(self):
+        if self.serie_arduino.inWaiting() > 0:
+            self.arduino_read = self.serie_arduino.readline()  # Leo lo que haya en la cola
+            print self.arduino_read
+            self.start = 0
+            self.serie_arduino.close()
 
 ### Mode3 ##############################################################################################################
 
@@ -472,8 +499,94 @@ class Main(FloatLayout):
 
             med_basedatos = []
 
-        if self.start == 0:
-            return
+        mode3_switch = { 0: self.mode3_switch0,
+                         1: self.mode3_switch1,
+                         2: self.mode3_switch2,
+                         3: self.mode3_switch3,
+                         }
+        mode3_switch[self.mode3_state]()
+
+    # Switchs del mode3_loop()
+    def mode3_switch0(self):
+        #        print "switch0"
+        if self.serial_count >= 19:  # Espero a que se setee bien el serie
+            self.serial_count = 0  # Para usarlo luego de la misma forma
+            try:
+                self.serie_arduino.write('I400U\n')  # Para asegurar la posicion en la que termine el empalme
+
+                a = self.serie_arduino.read(999)  # Limpio lo que haya por leer al pedo
+                self.serie_arduino.write('D20000U\n')  # Aca lo llevo al fin de carrera de la derecha
+                #                time.sleep(0.)
+                self.temp = 0  # Ni idea de donde salio
+                self.mode3_state = 1  # Va al siguiente estado del
+                print("switch1")
+            except (OSError, serial.SerialException):  # En caso de que haya algun problema escribiendo
+                print"Error switch3 mode1"
+                self.arduino_conectado = "Desconectado"
+                return
+        else:
+            self.serial_count += 1  # Seria como un timer de 0.1s cada vez que incrementa
+
+    def mode3_switch1(self):
+        #        if self.serial_count == 1:                          # Para esperar un ratito cuando escribo STATUS (0.1s)
+        #        time.sleep(0.2)
+        print self.serie_arduino.inWaiting()  # Imprime si hay algo en la cola del serie
+        if self.serie_arduino.inWaiting() > 0:
+            self.arduino_read = self.serie_arduino.readline()  # Leo lo que haya en la cola
+            print(self.arduino_read)  # Imprime lo que lee
+
+            if self.arduino_read == 'END_DER\r\n':  # Me fijo lo que recibi
+                self.serie_arduino.write('I10F\n')  # Muevo el stub para no tener en cuenta el error de la pieza
+                print self.serie_arduino.readline()
+                # self.serie_arduino.write('10\n')  # Muevo el stub para no tener en cuenta el error de la pieza
+                # print self.serie_arduino.readline()
+#                self.mode0_count = 0  # Para contar la cantidad de mediciones que voy a tomar
+#                self.serial_count = 0  # Por si necesito cotar de vuelta
+#                self.measure_vec = []  # Vectores para obtener los datos de real e img del vna
+#                self.pasos_porgrado = round(self.long_onda * 10000 / (2.11 * 36), 0)
+#                print self.long_onda
+#                print self.pasos_porgrado
+                self.serie_arduino.read(20)
+#                self.serie_arduino.write("I%sF\n" % int(self.pasos_porgrado))
+#                print self.serie_arduino.readline()
+#                self.pasos_realizados = int(self.pasos_porgrado)
+#                time.sleep(0.2)
+                self.mode3_state = 2  # Para que pase al siguiente estado del switch
+                self.serial_count = 0  # Por si necesito usarlo luego
+                print "switch2"
+
+    def mode3_switch2(self):
+        ang_mover = self.ang_sel - self.ANG_init
+        if ang_mover > 0:
+            ang_mover = 360 - ang_mover
+        elif ang_mover == 0:
+            ang_mover = 0
+        else:
+            ang_mover = abs(ang_mover)
+        print "ang_mover"
+        print ang_mover
+        print "ang_init"
+        print self.ANG_init
+
+        pasos_mover = ang_mover*100/self.deltaANG
+#        pasos_mover = (0.3*200000/4.22)*(ang_mover/360)
+        print "pasos a mover:"
+        print pasos_mover
+
+        self.serie_arduino.write("I%sU\n" % int(pasos_mover))
+        print self.serie_arduino.readline()
+        self.mode3_state = 3
+
+
+
+    def mode3_switch3(self):
+        if self.serie_arduino.inWaiting() > 0:
+            self.arduino_read = self.serie_arduino.readline()  # Leo lo que haya en la cola
+            print self.arduino_read
+            self.start = 0
+            self.serie_arduino.close()
+
+
 
 ########################################################################################################################
 ### Chequea el modo elegido y, en base a eso, habilita o deshabilita widgets ###########################################
@@ -486,7 +599,9 @@ class Main(FloatLayout):
 
             # Habilito el conectar con arduino y la seleccion del stub
             self.ids.stub_text.disabled = False
+            self.ids.stop.disabled = True
             self.ids.stub_sel_id.disabled = False
+            self.ids.stub_borrar_id.disabled = False
             self.ids.arduino_connect.disabled = False
             self.ids.port_text.disabled = False
 
@@ -505,7 +620,6 @@ class Main(FloatLayout):
 
                 # Deshabilito el Comenzar y Detener
                 self.ids.start.disabled = False
-                self.ids.stop.disabled = False
 
                 # Activo lo que tenga que ver con el vna
                 self.ids.vna_connect.disabled = False
@@ -537,7 +651,6 @@ class Main(FloatLayout):
 
                 # Deshabilito el Comenzar y Detener
                 self.ids.start.disabled = False
-                self.ids.stop.disabled = False
 
                 # Activo lo que tenga que ver con el vna
                 self.ids.vna_connect.disabled = False
@@ -569,7 +682,6 @@ class Main(FloatLayout):
 
                 # Deshabilito el Comenzar y Detener
                 self.ids.start.disabled = False
-                self.ids.stop.disabled = False
 
                 # Desactivo lo que tenga que ver con el vna
                 self.ids.vna_connect.disabled = True
@@ -601,7 +713,6 @@ class Main(FloatLayout):
 
                 # Deshabilito el Comenzar y Detener
                 self.ids.start.disabled = False
-                self.ids.stop.disabled = False
 
                 # Desactivo lo que tenga que ver con el vna
                 self.ids.vna_connect.disabled = True
@@ -629,12 +740,13 @@ class Main(FloatLayout):
                 self.ids.angcomp_seteo_l_text.disabled = False
 
         else:                                                           # De lo mas horrible que se haya visto
-            # Deshabilito el boton comenzar
+            # Deshabilito el boton comenzar y habilito el de parar
             self.ids.start.disabled = True
-
+            self.ids.stop.disabled = False
             # Deshabilito el conectar con arduino y la seleccion del stub
             self.ids.stub_text.disabled = True
             self.ids.stub_sel_id.disabled = True
+            self.ids.stub_borrar_id.disabled = True
             self.ids.arduino_connect.disabled = True
             self.ids.port_text.disabled = True
 
@@ -729,7 +841,7 @@ class Main(FloatLayout):
 
     # Chequea el stub elegido y, en base a eso, habilita o deshabilita widgets
     def stubsel_check(self):
-        if self.ids.stub_sel_id.text == "Seleccionar":
+        if self.ids.stub_sel_id.text == "Seleccionar" or self.start == 1:
             self.ids.stub_borrar_id.disabled = True
         else:
             self.ids.stub_borrar_id.disabled = False
@@ -835,7 +947,8 @@ class Main(FloatLayout):
         except visa.VisaIOError:                                            # Si no se puede hacer, es que se dc o algo
             return -1
 
-        mediciones_vna = []
+        #mediciones_vna = []
+        mediciones_vna_ReIm = []
         measure_real = []
         measure_img = []
         for i in range(0, len(measure)):                                    # Lo separo en real e img
@@ -846,6 +959,8 @@ class Main(FloatLayout):
 
         prom_measure_real = sum(measure_real) / len(measure_real)           # Hago el promedio de ambas partes
         prom_measure_img = sum(measure_img) / len(measure_img)
+        mediciones_vna_ReIm.append(prom_measure_real)
+        mediciones_vna_ReIm.append(prom_measure_img)
         div = prom_measure_img / prom_measure_real                          # Hago la div de ambas
         ang_aux = round(math.degrees(math.atan(div)), 2)                    # Calculo el angulo
         if prom_measure_real > 0 and prom_measure_img > 0:                  # Correccion del angulo para tenerlo de
@@ -865,8 +980,8 @@ class Main(FloatLayout):
         # Esto es mas que nada para mostrar en tiempo real como cambian los valores medidos
         mod = round(math.sqrt(math.pow(prom_measure_real, 2) + math.pow(prom_measure_img, 2)), 4)
         ang = round(ang, 2)
-        mediciones_vna.append(mod)
-        mediciones_vna.append(ang)
+        #mediciones_vna.append(mod)
+        #mediciones_vna.append(ang)
         self.angulo_out = str("ANG= %s" % ang)                      # Lo que va a imprimir con el angulo
         self.modulo_out = str("MOD= %s" % mod)                      # Lo que va a imprimir con el modulo
 
@@ -880,8 +995,8 @@ class Main(FloatLayout):
             self.z_out = str("COMP: L = %sH" % si_format(z_posta, precision=2))
 
         self.move_point(round(prom_measure_real * 122, 0), round(prom_measure_img * 122, 0))        # Mueve el punto
-        print mediciones_vna
-        return mediciones_vna
+        print mediciones_vna_ReIm
+        return mediciones_vna_ReIm
 
     # Popup del VNA
     def vna_popup(self):
@@ -1041,11 +1156,59 @@ class Main(FloatLayout):
             self.start = 0
             return
 
-#        if self.start == 1:
-#            pass
+        if self.ids.frec_precision.text == "Seleccionar":
+            txt = "Seleccione una frecuencia de calibracion valida"
+            ErrorPopup(txt)
+            self.start = 0
+            return
+        else:
+            # Guardo las frecuencias de la calibracion adv
+            lectura_adv = self.basedatos.lectura_calibracion_adv(self.ids.stub_sel_id.text,
+                                                                 self.ids.frec_precision.text)
+            # Me fijo si la frecuencia elegida es correcta, sino putea
+            lectura_adv = lectura_adv[0]
+            print lectura_adv
+            freq_check = float(self.ids.frec_precision.text)
+            print(freq_check)
 
-        self.mode2_state = 0
-        self.start = 1
+            if self.ids.angcomp_seteo_angulo.active:
+                self.mode3_componente_elegido = ang_sel_fnc(self.ids.angcomp_input_text.text)
+                if self.mode3_componente_elegido == -1:
+                    self.start = 0
+                    return
+                else:
+                    self.ang_sel = self.mode3_componente_elegido
+                    for i in range(0, len(lectura_adv), 2):
+                        if real_smith_aux > 0 and img_smith_aux > 0:  # Correccion del angulo para tenerlo de
+                            # 0 a 360 grados
+                            self.ang_sel = ang_aux
+                        elif real_smith_aux < 0 < img_smith_aux:
+                            self.ang_sel = 180 + ang_aux
+                        elif real_smith_aux < 0 and img_smith_aux < 0:
+                            self.ang_sel = 180 + ang_aux
+                        else:
+                            self.ang_sel = 360 + ang_aux
+
+            else:
+                impedancia_aux = []
+                real_smith_aux = []
+                if self.ids.angcomp_seteo_capacitor.active:
+                    self.mode3_componente_elegido = capa_sel_fnc(self.ids.angcomp_input_text.text)
+                    if self.mode3_componente_elegido == -1:
+                        self.start = 0
+                        return
+                    impedancia_aux = 1 / (self.mode3_componente_elegido * pow(10, -3) * 2 * math.pi * self.freq_input_check() * 50)
+
+                if self.ids.angcomp_seteo_inductor.active:
+                    self.mode3_componente_elegido = inductor_sel_fnc(self.ids.angcomp_input_text.text)
+                    if self.mode3_componente_elegido == -1:
+                        self.start = 0
+                        return
+                    impedancia_aux = self.mode3_componente_elegido * 2 * math.pi * self.freq_input_check() / 50
+
+            self.mode2_state = 0
+            self.start = 1
+
 
 ### Mode3 ##############################################################################################################
 
@@ -1088,10 +1251,50 @@ class Main(FloatLayout):
                 return
 
         # HACER ESTOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+        #Bueno
 
-        ROE =[]
-        ROE = lectura_calrapida[19]
-        print(ROE)
+        frec_cota_sup = 0
+        frec_cota_inf = 0
+        if freq_check >= 1:
+            for i in range(1, 9, 1):
+                print i
+                if freq_check >= i:
+                    frec_cota_inf = i
+            for i in range(8, 0, -1):
+                print i
+                if freq_check <= i:
+                    frec_cota_sup = i
+            variacion = freq_check - int(freq_check)
+        else:
+            if freq_check == 0.85:
+                frec_cota_inf = 0
+                frec_cota_sup = frec_cota_inf
+            else:
+                frec_cota_sup = 1
+                frec_cota_inf = 0
+            variacion = (freq_check-0.85)/0.15
+
+        if frec_cota_inf == frec_cota_sup:
+            self.ROE = lectura_calrapida[19+frec_cota_inf*2]
+            self.ANG_init = lectura_calrapida[20+frec_cota_inf*2]
+            self.deltaROE = lectura_calrapida[1+frec_cota_inf*2]
+            self.deltaANG = lectura_calrapida[2+frec_cota_inf*2]
+        else:
+            self.ROE = lectura_calrapida[19+frec_cota_inf*2] + (lectura_calrapida[19+frec_cota_sup*2]-lectura_calrapida[19+frec_cota_inf*2])*variacion
+            self.ANG_init = lectura_calrapida[20+frec_cota_inf*2] + (lectura_calrapida[20+frec_cota_sup*2]-lectura_calrapida[20+frec_cota_inf*2])*variacion
+            self.deltaROE = lectura_calrapida[1+frec_cota_inf*2] + (lectura_calrapida[1+frec_cota_sup*2]-lectura_calrapida[1+frec_cota_inf*2])*variacion
+            self.deltaANG = lectura_calrapida[2+frec_cota_inf*2] + (lectura_calrapida[2+frec_cota_sup*2]-lectura_calrapida[2+frec_cota_inf*2])*variacion
+
+        ROE_aux = self.ROE
+        self.deltaANG = self.deltaANG*0.95
+        print "ROE:"
+        print self.ROE
+        print "ANG_init:"
+        print self.ANG_init
+        print "deltaROE:"
+        print self.deltaROE
+        print "deltaANG:"
+        print self.deltaANG
 
         # Busco entre que valores se encuentra la frecuencia elegida, cosa de determinar a cuanto equivale un paso
 
@@ -1119,47 +1322,73 @@ class Main(FloatLayout):
                     return
                 impedancia_aux = self.mode3_componente_elegido*2*math.pi*self.freq_input_check()/50
 
-            print "IMPEDANCIA_AUX"
-            print impedancia_aux
-            a = 1 + pow(impedancia_aux, 2)
-            b = -pow(impedancia_aux, 2)*(1+pow(ROE, 2))
-            c = ((pow(1+pow(ROE, 2), 2)*pow(impedancia_aux, 2))/4-pow(ROE, 2))
+            ang_ant = 360
+            ang_actual = 0
+            veces = 0
+            while abs(ang_ant - ang_actual) > 0.01:
+                veces += 1
+                print "cant de veces"
+                print veces
+                print "IMPEDANCIA_AUX"
+                print impedancia_aux
+                a = 1 + pow(impedancia_aux, 2)
+                b = -pow(impedancia_aux, 2)*(1+pow(self.ROE, 2))
+                c = ((pow(1+pow(self.ROE, 2), 2)*pow(impedancia_aux, 2))/4-pow(self.ROE, 2))
 
-            val1 = (-b + math.sqrt(pow(b, 2)-4*a*c))/(2*a)
-            val2 = (-b - math.sqrt(pow(b, 2)-4*a*c))/(2*a)
+                if pow(b, 2) < (4 * a * c):
+                    txt = "Punto no valido"
+                    ErrorPopup(txt)
+                    self.start = 0
+                    self.serie_arduino.close()
+                    return
 
-            print "vals"
-            print val1
-            print val2
+                val1 = (-b + math.sqrt(pow(b, 2)-4*a*c))/(2*a)
+                val2 = (-b - math.sqrt(pow(b, 2)-4*a*c))/(2*a)
 
-            if impedancia_aux < 1:
-                if val1 < val2:
+                print "vals"
+                print val1
+                print val2
+
+                if val1 < val2:                 #Siempre descarta el valor mayor de los dos
                     real_smith_aux = val1
                 else:
                     real_smith_aux = val2
-            else:
-                if val1 < val2:
-                    real_smith_aux = val2
-                else:
-                    real_smith_aux = val1
 
-            print "REAL SMITH"
-            print real_smith_aux
-            print "ROE"
-            print ROE
-            img_smith_aux = math.sqrt(ROE*ROE-real_smith_aux*real_smith_aux)
-            print img_smith_aux
-            ang_aux = math.degrees(math.atan(img_smith_aux/real_smith_aux))  # Calculo el angulo
-            print ang_aux
-            if real_smith_aux > 0 and img_smith_aux > 0:    # Correccion del angulo para tenerlo de
-                                                            # 0 a 360 grados
-                self.ang_sel = ang_aux
-            elif real_smith_aux < 0 < img_smith_aux:
-                self.ang_sel = 180 + ang_aux
-            elif real_smith_aux < 0 and img_smith_aux < 0:
-                self.ang_sel = 180 + ang_aux
-            else:
-                self.ang_sel = 360 + ang_aux
+                print "REAL SMITH"
+                print real_smith_aux
+                print "self.ROE"
+                print self.ROE
+                img_smith_aux = math.sqrt(self.ROE*self.ROE-real_smith_aux*real_smith_aux)
+                print img_smith_aux
+                ang_aux = math.degrees(math.atan(img_smith_aux/real_smith_aux))  # Calculo el angulo
+                print ang_aux
+                if real_smith_aux > 0 and img_smith_aux > 0:    # Correccion del angulo para tenerlo de
+                                                                # 0 a 360 grados
+                    self.ang_sel = ang_aux
+                elif real_smith_aux < 0 < img_smith_aux:
+                    self.ang_sel = 180 + ang_aux
+                elif real_smith_aux < 0 and img_smith_aux < 0:
+                    self.ang_sel = 180 + ang_aux
+                else:
+                    self.ang_sel = 360 + ang_aux
+
+                if self.ids.angcomp_seteo_capacitor.active:
+                    self.ang_sel = 360 - self.ang_sel
+                ang_mov = self.ANG_init - self.ang_sel
+                if ang_mov < 0:
+                    ang_mov = 360 + ang_mov
+                print "Ang mover"
+                print ang_mov
+                ang_ant = ang_actual
+                ang_actual = self.ang_sel
+
+                self.ROE = ROE_aux - self.deltaROE * ang_mov / self.deltaANG
+                print "diferencia ang"
+                print (ang_actual - ang_ant)
+                if veces > 20:
+                    ang_actual = ang_ant
+
+
 
         print self.ang_sel
         self.mode3_state = 0
@@ -1204,7 +1433,9 @@ class Main(FloatLayout):
             txt = "Seleccione un stub para\npoder elegir la frecuencia"
             ErrorPopup(txt)
         else:
+            print "entro a frecuencias"
             aux = self.basedatos.listar_frecuencias(self.ids.stub_sel_id.text)
+            print aux
             for i in range(0, len(aux)):  # Cargo los stubs encontrados para que puedan ser mostrados
                 self.ids.frec_precision.values.append(str(aux[i][0]) + " GHz")
 #            self.ids.frec_precision.values = self.basedatos.listar_frecuencias(self.ids.stub_sel_id.text)

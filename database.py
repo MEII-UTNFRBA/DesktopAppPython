@@ -233,6 +233,8 @@ class DataBase:
         datos.append(frecuencia)
         cur.execute("SELECT cal_precision_id FROM cal_precision WHERE stub_id=? AND frecuencia=?", datos)
         cal_precision_id = cur.fetchone()
+        print "precision_id"
+        print cal_precision_id
         if cal_precision_id is None:
             print "entro lalalala"
             datos.append(pasos)
@@ -247,8 +249,8 @@ class DataBase:
             datos=[]
             datos.append(frecuencia)
             datos.append(pasos)
-            datos.extend(stub_id)
-            cur.execute("UPDATE cal_precision SET frecuencia=?, pasos=? WHERE stub_id=?", datos)
+            datos.extend(cal_precision_id)
+            cur.execute("UPDATE cal_precision SET frecuencia=?, pasos=? WHERE cal_precision_id=?", datos)
             self._conn.commit()
             cur.execute("DELETE FROM medicion_precision WHERE cal_precision_id=?", (cal_precision_id))
             self._conn.commit()
@@ -270,7 +272,7 @@ class DataBase:
 
     def listar_frecuencias(self,stub):
         cur = self._conn.cursor()
-        cur.execute("SELECT cal_rapid_id FROM stub WHERE nombre = '%s'"%stub)
+        cur.execute("SELECT stub_id FROM stub WHERE nombre = '%s'"%stub)
         data = cur.fetchone()
         print(data)
         cur.execute("SELECT frecuencia FROM cal_precision WHERE stub_id=?", data)
@@ -296,7 +298,8 @@ class DataBase:
         cur.execute("""SELECT cal_precision_id FROM cal_precision WHERE frecuencia=? 
                     AND stub_id=(SELECT stub_id FROM stub WHERE nombre='%s')"""% stub, (frecuencia,))
         cal_precision_id = cur.fetchone()
-        if cal_precision_id[0] is None:
+        print cal_precision_id
+        if cal_precision_id is None:
             cur.close()
             mediciones =[]
         else:
@@ -324,7 +327,8 @@ class DataBase:
 
 if __name__ == '__main__':
 
-    calibracion = [0.9091683067694444, 0.9142188118199495, 0.9192693168704545, 0.9243198219209596, 0.9293703269714646, 0.9344208320219697, 0.9394713370724748, 0.9445218421229797, 0.9495723471734848, 0.9546228522239899]#, 0.9596733572744949, 0.964723862325, 0.969774367375505, 0.9748248724260101, 0.9798753774765151, 0.9849258825270202, 0.9899763875775253, 0.9950268926280302, 0.5076302857, -0.40395883, 0.1479687967, -0.902092551, 0.8680801161, 0.0946174308, 0.0575000514, 0.8695636264, -0.7148194136, 0.4295295225, -0.5441409758, -0.6198151377, 0.5232329087, -0.5847795969, 0.5301742837, -0.4013099851, -0.5918462693, 0.2646576207]
+    #calibracion = [0.9091683067694444, 0.9142188118199495, 0.9192693168704545, 0.9243198219209596, 0.9293703269714646, 0.9344208320219697, 0.9394713370724748, 0.9445218421229797, 0.9495723471734848, 0.9546228522239899]#, 0.9596733572744949, 0.964723862325, 0.969774367375505, 0.9748248724260101, 0.9798753774765151, 0.9849258825270202, 0.9899763875775253, 0.9950268926280302, 0.5076302857, -0.40395883, 0.1479687967, -0.902092551, 0.8680801161, 0.0946174308, 0.0575000514, 0.8695636264, -0.7148194136, 0.4295295225, -0.5441409758, -0.6198151377, 0.5232329087, -0.5847795969, 0.5301742837, -0.4013099851, -0.5918462693, 0.2646576207]
+    calibracion = [1,2,3,4,5,6,7,8]
     nombre_stub = "Micho"
 
     clase_sqlite = DataBase()
@@ -342,4 +346,5 @@ if __name__ == '__main__':
 #    _cal_5ghz = clase_sqlite.lectura_calibracion_rapida(str("CHONGO"))
 #    print(_cal_5ghz[0][5])
     #clase_sqlite.agregar_calibracion_rapida(calibracion, nombre_stub)
-    clase_sqlite.agregar_calibracion_adv(calibracion, nombre_stub, 1, 40)
+    #clase_sqlite.agregar_calibracion_adv(calibracion, nombre_stub, float(1), 40)
+    print clase_sqlite.lectura_calibracion_adv(nombre_stub, 1)
