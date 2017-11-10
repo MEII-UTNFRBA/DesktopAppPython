@@ -65,9 +65,6 @@ class Main(FloatLayout):
     freq_precision_sel = 0                              # Frecuencia de precision elegida
 
     arduino_read = ""                                   # Para la lectura constante del arduino
-
-    measure_real = 0
-    measure_img = 0
     measure_vec = []
 
     def __init__(self):
@@ -102,6 +99,9 @@ class Main(FloatLayout):
         self.ROE = 0
         self.ANG_init = 0
 
+        self.measure_real = 0
+        self.measure_img = 0
+
         self.mode3_componente_elegido = 0
 
         # Flags para saber en que estado estoy del loop cuando comienza el programa
@@ -119,6 +119,9 @@ class Main(FloatLayout):
                                                         # frecuencia
 
         self.serie_arduino = serial.Serial()
+        self.freq_usada = 0
+        self.flag_delay = 0
+        self.pasos_mover = 0
 ########################################################################################################################
 ### Loop cada 100ms ####################################################################################################
 ########################################################################################################################
@@ -211,45 +214,48 @@ class Main(FloatLayout):
                 print "switch2"
 
     def mode0_switch2(self):
-        if self.serial_count == 0:
-            if self.serie_arduino.inWaiting() > 0:
+        if self.serie_arduino.inWaiting() > 0:
+            lectura_serial = self.serie_arduino.readline()
+            print lectura_serial
+            lectura_serial = string.replace(lectura_serial, "I", "")
+            lectura_serial = string.replace(lectura_serial, "F\n", "")
+            if int(lectura_serial) < self.pasos_realizados:
+                self.serie_arduino.write("STOP\n")
+                print "menos pasos"
+                pasos_restante = int(self.pasos_porgrado) - int(lectura_serial)
+                print pasos_restante
+                self.pasos_realizados = pasos_restante
+                self.serie_arduino.read(20)
+                self.serie_arduino.write("%s\n" % pasos_restante)
                 lectura_serial = self.serie_arduino.readline()
                 print lectura_serial
-                lectura_serial = string.replace(lectura_serial, "I", "")
-                lectura_serial = string.replace(lectura_serial, "F\n", "")
-                if int(lectura_serial) < self.pasos_realizados:
-                    self.serie_arduino.write("STOP\n")
-                    print "menos pasos"
-                    pasos_restante = int(self.pasos_porgrado) - int(lectura_serial)
-                    print pasos_restante
-                    self.pasos_realizados = pasos_restante
-                    self.serie_arduino.read(20)
-                    self.serie_arduino.write("%s\n" % pasos_restante)
-                    self.serial_count = 5
-                    lectura_serial = self.serie_arduino.readline()
-                    print lectura_serial
-                else:
-                    self.measure_vec.extend(self.vna_lectura())
-                    self.serial_count = 5
-                    try:
-                        #self.serie_arduino.read(20)
-                        self.serie_arduino.write("%s\n" % int(self.pasos_porgrado))  # Me muevo los pasos necesarios
-                        self.pasos_realizados = self.pasos_porgrado
-                    except (OSError, serial.SerialException):
-                        print("error")
-                        self.arduino_conectado = "Desconectado"
-                        return
-                    lectura_serial = self.serie_arduino.readline()
-                    print lectura_serial
-                    self.mode0_count += 1
-                    if self.mode0_count <= 360:
-                        print self.mode0_count
-                        self.mode0_state = 2
-                    else:
-                        self.mode0_state = 3
-                        print "switch3"
+            else:
+                self.serial_count = 5
+                self.flag_delay = 1
+
+        if self.serial_count <= 0 and self.flag_delay == 1:
+            self.measure_vec.extend(self.vna_lectura())
+            self.flag_delay = 0
+            try:
+                #self.serie_arduino.read(20)
+                self.serie_arduino.write("%s\n" % int(self.pasos_porgrado))  # Me muevo los pasos necesarios
+                self.pasos_realizados = self.pasos_porgrado
+            except (OSError, serial.SerialException):
+                print("error")
+                self.arduino_conectado = "Desconectado"
+                return
+            lectura_serial = self.serie_arduino.readline()
+            print lectura_serial
+            self.mode0_count += 1
+            if self.mode0_count <= 360:
+                print self.mode0_count
+                self.mode0_state = 2
+            else:
+                self.mode0_state = 3
+                print "switch3"
         else:
-            self.serial_count -= 1
+            if self.flag_delay == 1:
+                self.serial_count -= 1
             print self.serial_count
 
     def mode0_switch3(self):
@@ -467,29 +473,102 @@ class Main(FloatLayout):
             ErrorPopup(txt)
             self.start = 0                              # Para que no siga ejecutandose
 
-            mode2_switch = {0: self.mode2_switch0,
-                            1: self.mode2_switch1,
-                            2: self.mode2_switch2,
-                            3: self.mode2_switch3,
-                            }
-            mode2_switch[self.mode2_state]()
+
+        mode2_switch = {0: self.mode2_switch0,
+                        1: self.mode2_switch1,
+                        2: self.mode2_switch2,
+                        3: self.mode2_switch3,
+                        }
+        mode2_switch[self.mode2_state]()
         #if self.start == 0:
         #    return
 
-    def mode2_swith0(self):
-        return
-    def mode2_swith1(self):
-        return
-    def mode2_swith2(self):
-        return
-    def mode2_swith3(self):
+    def mode2_switch0(self):
+        print "switch0"
+        if self.serial_count >= 19:  # Espero a que se setee bien el serie
+            self.serial_count = 0  # Para usarlo luego de la misma forma
+            try:
+                self.serie_arduino.write('I400U\n')  # Para asegurar la posicion en la que termine el empalme
+
+                a = self.serie_arduino.read(999)  # Limpio lo que haya por leer al pedo
+                self.serie_arduino.write('D20000U\n')  # Aca lo llevo al fin de carrera de la derecha
+                #                time.sleep(0.)
+                self.temp = 0  # Ni idea de donde salio
+                self.mode2_state = 1  # Va al siguiente estado del
+                print("switch1")
+            except (OSError, serial.SerialException):  # En caso de que haya algun problema escribiendo
+                print"Error switch3 mode1"
+                self.arduino_conectado = "Desconectado"
+                return
+        else:
+            self.serial_count += 1  # Seria como un timer de 0.1s cada vez que incrementa
+
+    def mode2_switch1(self):
+        #        if self.serial_count == 1:                          # Para esperar un ratito cuando escribo STATUS (0.1s)
+        #        time.sleep(0.2)
+        print self.serie_arduino.inWaiting()  # Imprime si hay algo en la cola del serie
+        if self.serie_arduino.inWaiting() > 0:
+            self.arduino_read = self.serie_arduino.readline()  # Leo lo que haya en la cola
+            print(self.arduino_read)  # Imprime lo que lee
+
+            if self.arduino_read == 'END_DER\r\n':  # Me fijo lo que recibi
+                self.serie_arduino.write('I10F\n')  # Muevo el stub para no tener en cuenta el error de la pieza
+                print self.serie_arduino.readline()
+                # self.serie_arduino.write('10\n')  # Muevo el stub para no tener en cuenta el error de la pieza
+                # print self.serie_arduino.readline()
+                #                self.mode0_count = 0  # Para contar la cantidad de mediciones que voy a tomar
+                #                self.serial_count = 0  # Por si necesito cotar de vuelta
+                #                self.measure_vec = []  # Vectores para obtener los datos de real e img del vna
+                #                self.pasos_porgrado = round(self.long_onda * 10000 / (2.11 * 36), 0)
+                #                print self.long_onda
+                #                print self.pasos_porgrado
+                self.serie_arduino.read(20)
+                #                self.serie_arduino.write("I%sF\n" % int(self.pasos_porgrado))
+                #                print self.serie_arduino.readline()
+                #                self.pasos_realizados = int(self.pasos_porgrado)
+                #                time.sleep(0.2)
+                self.mode2_state = 2  # Para que pase al siguiente estado del switch
+                self.serial_count = 0  # Por si necesito usarlo luego
+                print "switch2"
+
+    def mode2_switch2(self):
+        self.serie_arduino.write("I%sU\n" % int(self.pasos_mover))
+        print self.serie_arduino.readline()
+        self.mode2_state = 3
+
+    def mode2_switch3(self):
         if self.serie_arduino.inWaiting() > 0:
             self.arduino_read = self.serie_arduino.readline()  # Leo lo que haya en la cola
             print self.arduino_read
             self.start = 0
             self.serie_arduino.close()
 
-### Mode3 ##############################################################################################################
+            ang_aux = math.degrees(math.atan(self.measure_img / self.measure_real))
+            if self.measure_real > 0 and self.measure_img > 0:  # Correccion del angulo para tenerlo de
+                # 0 a 360 grados
+                ang_aux = ang_aux
+            elif self.measure_real < 0 < self.measure_img:
+                ang_aux = 180 + ang_aux
+            elif self.measure_real < 0 and self.measure_img < 0:
+                ang_aux = 180 + ang_aux
+            else:
+                ang_aux = 360 + ang_aux
+
+            self.angulo_out = str("ANG= %s" % round(ang_aux, 3))  # Lo que va a imprimir con el angulo
+            self.modulo_out = str("MOD= %s" % round(math.sqrt(self.measure_real*self.measure_real + self.measure_img*self.measure_img), 5))  # Lo que va a imprimir con el modulo
+
+            s_complex = complex(self.measure_real, self.measure_img)  # Paso la medicion a compleja
+            z_aux = (1 + s_complex) / (1 - s_complex) * 50  # Calculo la impedancia
+            if self.measure_img < 0:  # Imprime la L o C en base a la freq
+                z_posta = -1 / (z_aux.imag * 2 * math.pi * pow(10, 9))
+                self.z_out = str("COMP: C = %sF" % si_format(z_posta, precision=2))
+            else:
+                z_posta = z_aux.imag / (2 * math.pi * pow(10, 9))
+                self.z_out = str("COMP: L = %sH" % si_format(z_posta, precision=2))
+
+            self.move_point(round(self.measure_real * 122, 0), round(self.measure_img * 122, 0))  # Mueve el punto
+
+    ### Mode3 ##############################################################################################################
 
     def mode3_loop(self):
         if self.arduino_conectado == "Desconectado":
@@ -508,7 +587,7 @@ class Main(FloatLayout):
 
     # Switchs del mode3_loop()
     def mode3_switch0(self):
-        #        print "switch0"
+        print "switch0"
         if self.serial_count >= 19:  # Espero a que se setee bien el serie
             self.serial_count = 0  # Para usarlo luego de la misma forma
             try:
@@ -576,8 +655,6 @@ class Main(FloatLayout):
         self.serie_arduino.write("I%sU\n" % int(pasos_mover))
         print self.serie_arduino.readline()
         self.mode3_state = 3
-
-
 
     def mode3_switch3(self):
         if self.serie_arduino.inWaiting() > 0:
@@ -1163,13 +1240,14 @@ class Main(FloatLayout):
             return
         else:
             # Guardo las frecuencias de la calibracion adv
-            lectura_adv = self.basedatos.lectura_calibracion_adv(self.ids.stub_sel_id.text,
-                                                                 self.ids.frec_precision.text)
+            frecuencia = float(string.replace(self.ids.frec_precision.text," GHz",""))
+            self.freq_usada = frecuencia
+            lectura_adv = self.basedatos.lectura_calibracion_adv(self.ids.stub_sel_id.text, frecuencia)
             # Me fijo si la frecuencia elegida es correcta, sino putea
-            lectura_adv = lectura_adv[0]
+            pasos = lectura_adv[len(lectura_adv)-1]
+            pasos = pasos[0]
             print lectura_adv
-            freq_check = float(self.ids.frec_precision.text)
-            print(freq_check)
+            print pasos
 
             if self.ids.angcomp_seteo_angulo.active:
                 self.mode3_componente_elegido = ang_sel_fnc(self.ids.angcomp_input_text.text)
@@ -1178,17 +1256,83 @@ class Main(FloatLayout):
                     return
                 else:
                     self.ang_sel = self.mode3_componente_elegido
-                    for i in range(0, len(lectura_adv), 2):
-                        if real_smith_aux > 0 and img_smith_aux > 0:  # Correccion del angulo para tenerlo de
-                            # 0 a 360 grados
-                            self.ang_sel = ang_aux
-                        elif real_smith_aux < 0 < img_smith_aux:
-                            self.ang_sel = 180 + ang_aux
-                        elif real_smith_aux < 0 and img_smith_aux < 0:
-                            self.ang_sel = 180 + ang_aux
-                        else:
-                            self.ang_sel = 360 + ang_aux
+                    salir = 0
+                    i = 0
+                    #img_siguiente = 0
+                    #real_siguiente = 0
+                    #img_anterior = 0
+                    #real_anterior = 0
 
+
+                    while salir == 0:
+                        ang_aux = math.degrees(math.atan(lectura_adv[i][1]/lectura_adv[i][0]))
+
+                        if lectura_adv[i][0] > 0 and lectura_adv[i][1] > 0:  # Correccion del angulo para tenerlo de
+                            # 0 a 360 grados
+                            ang_aux = ang_aux
+                        elif lectura_adv[i][0] < 0 < lectura_adv[i][1]:
+                            ang_aux = 180 + ang_aux
+                        elif lectura_adv[i][0] < 0 and lectura_adv[i][1] < 0:
+                            ang_aux = 180 + ang_aux
+                        else:
+                            ang_aux = 360 + ang_aux
+                        if i == 0:
+                            ang_init = ang_aux
+                            print "angulo inicial"
+                            print ang_init
+                            ang_sel_relativo = ang_init - self.ang_sel
+                            if ang_sel_relativo < 0:
+                                ang_sel_relativo = 360 + ang_sel_relativo
+                            print "desplazamiento angular relativo"
+                            print ang_sel_relativo
+                        ang_aux_relativo = ang_init - ang_aux
+                        if ang_aux_relativo < 0:
+                            ang_aux_relativo = 360 + ang_aux_relativo
+                        print ang_aux_relativo
+                        if ang_sel_relativo > ang_aux_relativo:
+                            real_anterior = lectura_adv[i][0]
+                            img_anterior = lectura_adv[i][1]
+                            i += 1
+                            real_siguiente = lectura_adv[i][0]
+                            img_siguiente = lectura_adv[i][1]
+                        else:
+                            salir = 1
+
+                    ang_aux = math.degrees(math.atan(img_anterior / real_anterior))
+                    if real_anterior > 0 and img_anterior > 0:  # Correccion del angulo para tenerlo de
+                        # 0 a 360 grados
+                        ang_aux = ang_aux
+                    elif real_anterior < 0 < img_anterior:
+                        ang_aux = 180 + ang_aux
+                    elif real_anterior < 0 and img_anterior < 0:
+                        ang_aux = 180 + ang_aux
+                    else:
+                        ang_aux = 360 + ang_aux
+                    print "Angulo antes"
+                    ang_antes = ang_aux
+                    print ang_antes
+                    print "Angulo seleccionado"
+                    print self.ang_sel
+                    ang_aux = math.degrees(math.atan(img_siguiente / real_siguiente))
+                    if real_siguiente > 0 and img_siguiente > 0:  # Correccion del angulo para tenerlo de
+                        # 0 a 360 grados
+                        ang_aux = ang_aux
+                    elif real_siguiente < 0 < img_siguiente:
+                        ang_aux = 180 + ang_aux
+                    elif real_siguiente < 0 and img_siguiente < 0:
+                        ang_aux = 180 + ang_aux
+                    else:
+                        ang_aux = 360 + ang_aux
+                    print "Angulo despues"
+                    ang_despues = ang_aux
+                    print ang_despues
+                    print "Pasos para minimo"
+                    pasos_min = i*pasos
+                    print pasos_min
+                    self.pasos_mover = (i + abs(ang_antes-self.ang_sel)/abs(ang_antes-ang_despues))*pasos
+                    print self.pasos_mover
+                    self.measure_real = math.sqrt(pow((img_anterior+img_siguiente)/2,2)+pow((real_anterior+real_siguiente)/2,2))*math.cos(math.pi*self.ang_sel/180)
+                    self.measure_img = math.sqrt(pow((img_anterior+img_siguiente)/2,2)+pow((real_anterior+real_siguiente)/2,2))*math.sin(math.pi*self.ang_sel/180)
             else:
                 impedancia_aux = []
                 real_smith_aux = []
@@ -1197,14 +1341,37 @@ class Main(FloatLayout):
                     if self.mode3_componente_elegido == -1:
                         self.start = 0
                         return
-                    impedancia_aux = 1 / (self.mode3_componente_elegido * pow(10, -3) * 2 * math.pi * self.freq_input_check() * 50)
+                    impedancia_aux = 1 / (self.mode3_componente_elegido * pow(10, -3) * 2 * math.pi * frecuencia * 50)
 
                 if self.ids.angcomp_seteo_inductor.active:
                     self.mode3_componente_elegido = inductor_sel_fnc(self.ids.angcomp_input_text.text)
                     if self.mode3_componente_elegido == -1:
                         self.start = 0
                         return
-                    impedancia_aux = self.mode3_componente_elegido * 2 * math.pi * self.freq_input_check() / 50
+                    impedancia_aux = self.mode3_componente_elegido * 2 * math.pi * frecuencia / 50
+
+                salir = 0
+                i = 0
+                while salir == 0:
+                    Z_aux = 2*lectura_adv[i][1] / (pow(lectura_adv[i][1],2)+pow((1-lectura_adv[i][0]),2))
+                    if i == 0:
+                        Z_init = Z_aux
+                        if (impedancia_aux - Z_init) < 0:
+                            sss = 0
+                    if impedancia_aux > Z_aux:
+                        real_anterior = lectura_adv[i][0]
+                        img_anterior = lectura_adv[i][1]
+                        i += 1
+                        real_siguiente = lectura_adv[i][0]
+                        img_siguiente = lectura_adv[i][1]
+                    else:
+                        salir = 1
+
+                print "Pasos para minimo"
+                pasos_min = i * pasos
+                print pasos_min
+#                self.pasos_mover = (i + abs(ang_antes - self.ang_sel) / abs(ang_antes - ang_despues)) * pasos
+                print self.pasos_mover
 
             self.mode2_state = 0
             self.start = 1

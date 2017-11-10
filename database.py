@@ -295,6 +295,8 @@ class DataBase:
 
     def lectura_calibracion_adv(self, stub, frecuencia):
         cur = self._conn.cursor()
+        print stub
+        print frecuencia
         cur.execute("""SELECT cal_precision_id FROM cal_precision WHERE frecuencia=? 
                     AND stub_id=(SELECT stub_id FROM stub WHERE nombre='%s')"""% stub, (frecuencia,))
         cal_precision_id = cur.fetchone()
@@ -305,9 +307,11 @@ class DataBase:
         else:
             cur.execute("SELECT valor_real,valor_img FROM medicion_precision WHERE cal_precision_id=? ORDER BY valor_id", (cal_precision_id))
             mediciones = cur.fetchall()
+            cur.execute("SELECT pasos FROM cal_precision WHERE cal_precision_id=?", (cal_precision_id))
+            pasos = cur.fetchone()
+            mediciones.append(pasos)
             cur.close()
         return mediciones
-
 
     def borrar_stub(self,stub):
         cur = self._conn.cursor()
