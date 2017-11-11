@@ -68,7 +68,7 @@ class VNAConnectPopup(Popup):
         a = ObjectProperty()
         a = self.rm.list_resources(query=u'USB?*')
 #        a = self.rm.list_resources()
-#        print(a)
+#        #print(a)
         test = []
         inst_aux = []
         if len(a) > 0:
@@ -126,9 +126,9 @@ class VNAConnectPopup(Popup):
         self.vna_elegido = vna_sel
         callback(self.vna_elegido,showname)               #Hay que ver si se rompe por esto
 #        inst = rm.open_resource(str(vna_elegido))      #Hay que ver como hacer para que no se rompa
-#        print(str(self.vna_elegido))
+#        #print(str(self.vna_elegido))
 #        inst = self.rm.open_resource(str(self.vna_elegido))
-#        print(inst.query("*IDN?"))
+#        #print(inst.query("*IDN?"))
 #        inst.write("INST:SEL 'NA'")
 #        inst.write("CALC:FORM SMIT")
 #        inst.write("CALC:PAR:COUN 1")
@@ -218,5 +218,51 @@ class StubDeletePopup(Popup):
         self.open()
 
     def stub_delete(self,cb,args):
+        cb(args)
+        self.dismiss()
+
+
+class MismaFrecPopup(Popup):
+    def __init__(self, callback):
+        super(MismaFrecPopup, self).__init__()
+        self.title = 'ADVERTENCIA'
+        content = BoxLayout(orientation='vertical')
+        self.size_hint = (None, None)
+        self.size = (370, 200)
+        self.auto_dismiss = False
+        content.add_widget(Label(
+            text='Si realiza la calibracion a esta frecuencia,\nperdera la anterior realizada de la misma. Continuar?',
+            halign='center'))
+        content.add_widget(
+            Button(text='Aceptar', on_press=lambda *args: MismaFrecPopup.frec_sobreescribir(self, callback, 1)))
+        content.add_widget(
+            Button(text='Cancelar', on_press=lambda *args: MismaFrecPopup.frec_sobreescribir(self, callback, 0)))
+        self.content = content
+        self.open()
+
+    def frec_sobreescribir(self, cb, args):
+        cb(args)
+        self.dismiss()
+
+
+class RapidaPopup(Popup):
+    def __init__(self, callback):
+        super(RapidaPopup, self).__init__()
+        self.title = 'ADVERTENCIA'
+        content = BoxLayout(orientation='vertical')
+        self.size_hint = (None, None)
+        self.size = (370, 200)
+        self.auto_dismiss = False
+        content.add_widget(Label(
+            text='Si realiza la calibracion rapida del stub,\nperdera la anterior realizada del mismo. Continuar?',
+            halign='center'))
+        content.add_widget(
+            Button(text='Aceptar', on_press=lambda *args: RapidaPopup.rw_rapida(self, callback, 1)))
+        content.add_widget(
+            Button(text='Cancelar', on_press=lambda *args: RapidaPopup.rw_rapida(self, callback, 0)))
+        self.content = content
+        self.open()
+
+    def rw_rapida(self, cb, args):
         cb(args)
         self.dismiss()

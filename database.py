@@ -14,10 +14,10 @@ class DataBase:
             retorna True si la conexion fue exitosa
         '''
         try:
-            self._conn = sqlite3.connect('test.db')
+            self._conn = sqlite3.connect('stubsimpleauto.db')
             return True
         except:
-            print sys.exc_info()[1]
+            #print sys.exc_info()[1]
             return False
 
     def _verifica_conexion(self):
@@ -26,7 +26,7 @@ class DataBase:
             retorna True si ya se realizo la conexion
         '''
         if not self._conn:
-            print "Error. Todavia no se ha conectado a la base de datos"
+            #print "Error. Todavia no se ha conectado a la base de datos"
             return False
         return True
 
@@ -34,12 +34,12 @@ class DataBase:
         if not self._verifica_conexion():
             return False
         cur = self._conn.cursor()
-        print("Base de datos abierta")
+        #print("Base de datos abierta")
         cur.execute("PRAGMA table_info(stub)")
         data = cur.fetchall()
-        print(data)
+        #print(data)
         if len(data) == 0:
-            print("Tabla vacia")
+            #print("Tabla vacia")
             cur.execute("""
             CREATE TABLE stub(
             stub_id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -103,7 +103,7 @@ class DataBase:
             self._conn.commit()
         cur.execute("PRAGMA table_info(stub)")
         data = cur.fetchall()
-        print(data)
+        #print(data)
         cur.close()
 
     def listar(self, tabla, campo):
@@ -115,7 +115,7 @@ class DataBase:
             cur.execute("SELECT %s FROM %s" % (campo,tabla))
             return cur.fetchall()
         except:
-            print sys.exc_info()[1]
+            #print sys.exc_info()[1]
             error = True
         finally:
             cur.close()
@@ -225,18 +225,18 @@ class DataBase:
     def agregar_calibracion_adv(self, calibracion, stub, frecuencia, pasos):
         datos = []
         cur = self._conn.cursor()
-        print stub
+        #print stub
         cur.execute("SELECT stub_id FROM stub WHERE nombre='%s'"% stub)
         stub_id = cur.fetchone()
-        print stub_id
+        #print stub_id
         datos.extend(stub_id)
         datos.append(frecuencia)
         cur.execute("SELECT cal_precision_id FROM cal_precision WHERE stub_id=? AND frecuencia=?", datos)
         cal_precision_id = cur.fetchone()
-        print "precision_id"
-        print cal_precision_id
+        #print "precision_id"
+        #print cal_precision_id
         if cal_precision_id is None:
-            print "entro lalalala"
+            #print "entro lalalala"
             datos.append(pasos)
             cur.execute("INSERT INTO cal_precision(stub_id,frecuencia,pasos) VALUES (?,?,?)", datos)
             self._conn.commit()
@@ -274,7 +274,7 @@ class DataBase:
         cur = self._conn.cursor()
         cur.execute("SELECT stub_id FROM stub WHERE nombre = '%s'"%stub)
         data = cur.fetchone()
-        print(data)
+        #print(data)
         cur.execute("SELECT frecuencia FROM cal_precision WHERE stub_id=?", data)
         frecuencias = cur.fetchall()
         cur.close()
@@ -295,12 +295,12 @@ class DataBase:
 
     def lectura_calibracion_adv(self, stub, frecuencia):
         cur = self._conn.cursor()
-        print stub
-        print frecuencia
+        #print stub
+        #print frecuencia
         cur.execute("""SELECT cal_precision_id FROM cal_precision WHERE frecuencia=? 
                     AND stub_id=(SELECT stub_id FROM stub WHERE nombre='%s')"""% stub, (frecuencia,))
         cal_precision_id = cur.fetchone()
-        print cal_precision_id
+        #print cal_precision_id
         if cal_precision_id is None:
             cur.close()
             mediciones =[]
@@ -348,7 +348,7 @@ if __name__ == '__main__':
     #clase_sqlite.agregar_calibracion_rapida(mediciones, str("CHONGO"))
     #clase_sqlite.listar("stub")
 #    _cal_5ghz = clase_sqlite.lectura_calibracion_rapida(str("CHONGO"))
-#    print(_cal_5ghz[0][5])
+#    #print(_cal_5ghz[0][5])
     #clase_sqlite.agregar_calibracion_rapida(calibracion, nombre_stub)
     #clase_sqlite.agregar_calibracion_adv(calibracion, nombre_stub, float(1), 40)
-    print clase_sqlite.lectura_calibracion_adv(nombre_stub, 1)
+    #print clase_sqlite.lectura_calibracion_adv(nombre_stub, 1)
